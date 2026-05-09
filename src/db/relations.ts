@@ -1,7 +1,7 @@
 import { relations } from "drizzle-orm";
 import { leadActivities, leadNotes } from "./schema/activities";
 import { aiLeadSummaries } from "./schema/ai";
-import { passwordResetTokens, refreshTokens } from "./schema/auth";
+import { passwordResetTokens } from "./schema/auth";
 import { automationRules } from "./schema/automation";
 import { followups } from "./schema/followups";
 import { leadImports } from "./schema/imports";
@@ -16,12 +16,7 @@ export const usersRelations = relations(users, ({ many }) => ({
 	activities: many(leadActivities),
 	notes: many(leadNotes),
 	followups: many(followups),
-	refreshTokens: many(refreshTokens),
 	passwordResetTokens: many(passwordResetTokens),
-}));
-
-export const refreshTokensRelations = relations(refreshTokens, ({ one }) => ({
-	user: one(users, { fields: [refreshTokens.userId], references: [users.id] }),
 }));
 
 export const passwordResetTokensRelations = relations(

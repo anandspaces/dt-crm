@@ -8,9 +8,7 @@ const envSchema = z.object({
 		.default("development"),
 
 	JWT_ACCESS_SECRET: z.string().min(32),
-	JWT_REFRESH_SECRET: z.string().min(32),
 	JWT_ACCESS_EXPIRES: z.string().default("15m"),
-	JWT_REFRESH_EXPIRES: z.string().default("7d"),
 
 	CORS_ORIGIN: z.string().default("*"),
 

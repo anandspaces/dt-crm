@@ -4,14 +4,9 @@ import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import nodemailer from "nodemailer";
 import { db } from "../../config/db";
 import { env } from "../../config/env";
-import { passwordResetTokens, refreshTokens, users } from "../../db/schema";
+import { passwordResetTokens, users } from "../../db/schema";
 import type { JWTPayload } from "../../shared/types/auth";
-import {
-	hashToken,
-	signAccessToken,
-	signRefreshToken,
-	verifyRefreshToken,
-} from "../../shared/utils/crypto";
+import { hashToken, signAccessToken } from "../../shared/utils/crypto";
 import {
 	ConflictError,
 	ForbiddenError,
@@ -28,21 +23,6 @@ function tokenPayload(
 	u: typeof users.$inferSelect,
 ): Omit<JWTPayload, "iat" | "exp"> {
 	return { sub: u.id, email: u.email, role: u.role };
-}
-
-async function issueTokenPair(u: typeof users.$inferSelect) {
-	const payload = tokenPayload(u);
-	const accessToken = signAccessToken(payload);
-	const rawRefresh = signRefreshToken(payload);
-
-	const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-	await db.insert(refreshTokens).values({
-		userId: u.id,
-		tokenHash: hashToken(rawRefresh),
-		expiresAt,
-	});
-
-	return { accessToken, refreshToken: rawRefresh };
 }
 
 export async function register(
@@ -83,8 +63,8 @@ export async function register(
 
 	if (!user) throw new Error("Failed to create user");
 
-	const tokens = await issueTokenPair(user);
-	return { user: safeUser(user), ...tokens };
+	const accessToken = signAccessToken(tokenPayload(user));
+	return { user: safeUser(user), accessToken };
 }
 
 export async function login(input: LoginInput) {
@@ -108,65 +88,8 @@ export async function login(input: LoginInput) {
 		.set({ lastLoginAt: new Date() })
 		.where(eq(users.id, user.id));
 
-	const tokens = await issueTokenPair(user);
-	return { user: safeUser(user), ...tokens };
-}
-
-export async function refresh(rawRefreshToken: string) {
-	let payload: JWTPayload;
-	try {
-		payload = verifyRefreshToken(rawRefreshToken);
-	} catch {
-		throw new UnauthorizedError("Refresh token is invalid or expired");
-	}
-
-	const tokenHash = hashToken(rawRefreshToken);
-	const [storedToken] = await db
-		.select()
-		.from(refreshTokens)
-		.where(
-			and(
-				eq(refreshTokens.tokenHash, tokenHash),
-				isNull(refreshTokens.revokedAt),
-				gt(refreshTokens.expiresAt, new Date()),
-			),
-		)
-		.limit(1);
-
-	if (!storedToken) {
-		throw new UnauthorizedError("Refresh token has been revoked or expired");
-	}
-
-	await db
-		.update(refreshTokens)
-		.set({ revokedAt: new Date() })
-		.where(eq(refreshTokens.id, storedToken.id));
-
-	const [user] = await db
-		.select()
-		.from(users)
-		.where(and(eq(users.id, payload.sub), eq(users.isActive, true)))
-		.limit(1);
-
-	if (!user) {
-		throw new UnauthorizedError("User not found or inactive");
-	}
-
-	const tokens = await issueTokenPair(user);
-	return tokens;
-}
-
-export async function logout(rawRefreshToken: string) {
-	const tokenHash = hashToken(rawRefreshToken);
-	await db
-		.update(refreshTokens)
-		.set({ revokedAt: new Date() })
-		.where(
-			and(
-				eq(refreshTokens.tokenHash, tokenHash),
-				isNull(refreshTokens.revokedAt),
-			),
-		);
+	const accessToken = signAccessToken(tokenPayload(user));
+	return { user: safeUser(user), accessToken };
 }
 
 export async function forgotPassword(email: string) {

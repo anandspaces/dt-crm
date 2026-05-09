@@ -8,6 +8,13 @@
 			"when": 1778355531263,
 			"tag": "0000_needy_wallflower",
 			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "7",
+			"when": 1778359182705,
+			"tag": "0001_huge_dark_beast",
+			"breakpoints": true
 		}
 	]
 }

@@ -1,11 +1,10 @@
 import { Router } from "express";
 import { validate } from "../../shared/middleware/validate.middleware";
-import { created, noContent, ok } from "../../shared/utils/response";
+import { created, ok } from "../../shared/utils/response";
 import { optionalAuth } from "./auth.middleware";
 import {
 	forgotPasswordSchema,
 	loginSchema,
-	refreshSchema,
 	registerSchema,
 	resetPasswordSchema,
 } from "./auth.schema";
@@ -26,16 +25,6 @@ router.post(
 router.post("/login", validate(loginSchema), async (req, res) => {
 	const result = await authService.login(req.body);
 	ok(res, result);
-});
-
-router.post("/refresh", validate(refreshSchema), async (req, res) => {
-	const tokens = await authService.refresh(req.body.refreshToken);
-	ok(res, tokens);
-});
-
-router.post("/logout", validate(refreshSchema), async (req, res) => {
-	await authService.logout(req.body.refreshToken);
-	noContent(res);
 });
 
 router.post(
