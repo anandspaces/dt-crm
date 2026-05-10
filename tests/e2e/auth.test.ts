@@ -80,6 +80,29 @@ describe("POST /api/v1/auth/register", () => {
 		expect(res.body.data.accessToken).toBeDefined();
 	});
 
+	it("allows unauthenticated self-registration as SALES when users exist", async () => {
+		const res = await api.post("/api/v1/auth/register", {
+			name: "Public User",
+			email: "public-signup@test.local",
+			password: "password123",
+			role: "SALES",
+		});
+		expect(res.status).toBe(201);
+		expect(res.body.data.user.role).toBe("SALES");
+		expect(res.body.data.accessToken).toBeDefined();
+	});
+
+	it("forces SALES on public signup when a privileged role is requested", async () => {
+		const res = await api.post("/api/v1/auth/register", {
+			name: "No Admin",
+			email: "no-admin@test.local",
+			password: "password123",
+			role: "ADMIN",
+		});
+		expect(res.status).toBe(201);
+		expect(res.body.data.user.role).toBe("SALES");
+	});
+
 	it("returns 409 on duplicate email", async () => {
 		await api.post(
 			"/api/v1/auth/register",

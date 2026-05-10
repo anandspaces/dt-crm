@@ -34,10 +34,17 @@ export async function register(
 		.from(users);
 	const n = countRow?.n ?? 0;
 
-	if (n > 0) {
-		if (!requestingUser || requestingUser.role !== "ADMIN") {
-			throw new ForbiddenError("Only ADMIN can register new users");
-		}
+	let role = input.role;
+
+	if (n === 0) {
+		// Bootstrap: first account (often ADMIN) — open registration
+	} else if (requestingUser?.role === "ADMIN") {
+		// Admin may provision any role
+	} else if (!requestingUser) {
+		// Public self-registration: non-privileged role only
+		role = "SALES";
+	} else {
+		throw new ForbiddenError("Only ADMIN can register new users");
 	}
 
 	const existing = await db
@@ -57,7 +64,7 @@ export async function register(
 			name: input.name,
 			email: input.email,
 			passwordHash,
-			role: input.role,
+			role,
 		})
 		.returning();
 
