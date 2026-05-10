@@ -1,50 +1,83 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../../config/db";
-import { leadNotes } from "../../db/schema";
+import { leadActivities, leadNotes, users } from "../../db/schema";
 import type { JWTPayload } from "../../shared/types/auth";
 import { ForbiddenError, NotFoundError } from "../../shared/utils/errors";
 import { assertLeadAccess } from "../leads/leads.service";
 
 export const createNoteSchema = z.object({
-	content: z.string().min(1),
+	text: z.string().min(1),
 });
 
 export const updateNoteSchema = z.object({
-	content: z.string().min(1),
+	text: z.string().min(1),
 });
+
+export type CreateNoteInput = z.infer<typeof createNoteSchema>;
+export type UpdateNoteInput = z.infer<typeof updateNoteSchema>;
+
+function shapeNote(
+	row: typeof leadNotes.$inferSelect,
+	authorName: string | null,
+) {
+	return {
+		id: row.id,
+		text: row.content,
+		createdBy: authorName ?? null,
+		createdAt: row.createdAt,
+		updatedAt: row.updatedAt,
+	};
+}
 
 export async function listNotes(leadId: string, actor: JWTPayload) {
 	await assertLeadAccess(leadId, actor);
 
-	return db.query.leadNotes.findMany({
-		where: (n, { eq }) => eq(n.leadId, leadId),
-		with: {
-			user: { columns: { id: true, name: true, email: true } },
-		},
-		orderBy: (n, { desc }) => [desc(n.createdAt)],
-	});
+	const rows = await db
+		.select({ note: leadNotes, author: users.name })
+		.from(leadNotes)
+		.leftJoin(users, eq(leadNotes.userId, users.id))
+		.where(eq(leadNotes.leadId, leadId))
+		.orderBy(desc(leadNotes.createdAt));
+
+	return { notes: rows.map((r) => shapeNote(r.note, r.author)) };
 }
 
 export async function createNote(
 	leadId: string,
-	content: string,
+	text: string,
 	actor: JWTPayload,
 ) {
 	await assertLeadAccess(leadId, actor);
 
 	const [note] = await db
 		.insert(leadNotes)
-		.values({ leadId, userId: actor.sub, content })
+		.values({ leadId, userId: actor.sub, content: text })
 		.returning();
+	if (!note) throw new Error("Failed to create note");
 
-	return note;
+	await db.insert(leadActivities).values({
+		leadId,
+		userId: actor.sub,
+		type: "NOTE",
+		title: "Note added",
+		description: text.slice(0, 500),
+		metadataJson: { kind: "note" },
+	});
+
+	const [author] = await db
+		.select({ name: users.name })
+		.from(users)
+		.where(eq(users.id, actor.sub))
+		.limit(1);
+
+	return shapeNote(note, author?.name ?? null);
 }
 
 export async function updateNote(
 	leadId: string,
 	noteId: string,
-	content: string,
+	text: string,
 	actor: JWTPayload,
 ) {
 	await assertLeadAccess(leadId, actor);
@@ -63,11 +96,18 @@ export async function updateNote(
 
 	const [updated] = await db
 		.update(leadNotes)
-		.set({ content, updatedAt: new Date() })
+		.set({ content: text, updatedAt: new Date() })
 		.where(eq(leadNotes.id, noteId))
 		.returning();
+	if (!updated) throw new Error("Failed to update note");
 
-	return updated;
+	const [author] = await db
+		.select({ name: users.name })
+		.from(users)
+		.where(eq(users.id, updated.userId))
+		.limit(1);
+
+	return shapeNote(updated, author?.name ?? null);
 }
 
 export async function deleteNote(

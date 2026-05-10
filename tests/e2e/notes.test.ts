@@ -19,7 +19,10 @@ describe("Notes API", () => {
 		const b = await createUser({ role: "SALES", email: "b@notes.local" });
 		salesBToken = makeToken("SALES", { sub: b.id, email: b.email });
 
-		const admin = await createUser({ role: "ADMIN", email: "admin@notes.local" });
+		const admin = await createUser({
+			role: "ADMIN",
+			email: "admin@notes.local",
+		});
 		adminToken = makeToken("ADMIN", { sub: admin.id, email: admin.email });
 
 		const lead = await createLead({ assignedUserId: salesAId });
@@ -28,55 +31,55 @@ describe("Notes API", () => {
 
 	afterAll(truncateAll);
 
-	it("creates a note (author = caller)", async () => {
+	it("creates a note (createdBy = caller)", async () => {
 		const res = await api.post(
 			`/api/v1/leads/${leadId}/notes`,
-			{ content: "Called and left voicemail" },
+			{ text: "Called and left voicemail" },
 			salesAToken,
 		);
 		expect(res.status).toBe(201);
-		expect(res.body.data.userId).toBe(salesAId);
-		expect(res.body.data.content).toBe("Called and left voicemail");
+		expect(res.body.data.text).toBe("Called and left voicemail");
+		expect(typeof res.body.data.createdBy).toBe("string");
 	});
 
-	it("rejects empty content (400)", async () => {
+	it("rejects empty text (400)", async () => {
 		const res = await api.post(
 			`/api/v1/leads/${leadId}/notes`,
-			{ content: "" },
+			{ text: "" },
 			salesAToken,
 		);
 		expect(res.status).toBe(400);
 	});
 
-	it("lists notes with author projection", async () => {
+	it("lists notes with shaped projection", async () => {
 		const res = await api.get(`/api/v1/leads/${leadId}/notes`, salesAToken);
 		expect(res.status).toBe(200);
-		expect(Array.isArray(res.body.data)).toBe(true);
-		expect(res.body.data[0].user).toBeDefined();
-		expect(res.body.data[0].user.email).toContain("@notes.local");
+		expect(Array.isArray(res.body.data.notes)).toBe(true);
+		expect(res.body.data.notes[0].text).toBeDefined();
+		expect(res.body.data.notes[0].createdBy).toBeDefined();
 	});
 
 	it("author can edit their own note", async () => {
 		const created = await api.post(
 			`/api/v1/leads/${leadId}/notes`,
-			{ content: "Editable" },
+			{ text: "Editable" },
 			salesAToken,
 		);
 		const noteId = created.body.data.id;
 
 		const upd = await api.patch(
 			`/api/v1/leads/${leadId}/notes/${noteId}`,
-			{ content: "Edited" },
+			{ text: "Edited" },
 			salesAToken,
 		);
 		expect(upd.status).toBe(200);
-		expect(upd.body.data.content).toBe("Edited");
+		expect(upd.body.data.text).toBe("Edited");
 	});
 
 	it("non-author SALES is blocked at lead access (403) before note ownership", async () => {
 		const created = await api.post(
 			`/api/v1/leads/${leadId}/notes`,
-			{ content: "Foreign-touch" },
+			{ text: "Foreign-touch" },
 			salesAToken,
 		);
 		const noteId = created.body.data.id;
@@ -84,7 +87,7 @@ describe("Notes API", () => {
 		// salesB isn't assigned the lead → blocked before reaching the note check
 		const res = await api.patch(
 			`/api/v1/leads/${leadId}/notes/${noteId}`,
-			{ content: "stolen" },
+			{ text: "stolen" },
 			salesBToken,
 		);
 		expect(res.status).toBe(403);
@@ -93,24 +96,24 @@ describe("Notes API", () => {
 	it("ADMIN can edit anyone's note", async () => {
 		const created = await api.post(
 			`/api/v1/leads/${leadId}/notes`,
-			{ content: "Admin will overwrite" },
+			{ text: "Admin will overwrite" },
 			salesAToken,
 		);
 		const noteId = created.body.data.id;
 
 		const res = await api.patch(
 			`/api/v1/leads/${leadId}/notes/${noteId}`,
-			{ content: "Overwritten by admin" },
+			{ text: "Overwritten by admin" },
 			adminToken,
 		);
 		expect(res.status).toBe(200);
-		expect(res.body.data.content).toBe("Overwritten by admin");
+		expect(res.body.data.text).toBe("Overwritten by admin");
 	});
 
 	it("author can delete their own note", async () => {
 		const created = await api.post(
 			`/api/v1/leads/${leadId}/notes`,
-			{ content: "Delete me" },
+			{ text: "Delete me" },
 			salesAToken,
 		);
 		const noteId = created.body.data.id;

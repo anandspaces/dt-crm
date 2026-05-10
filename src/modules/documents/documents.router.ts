@@ -1,18 +1,17 @@
 import { Router } from "express";
 import multer from "multer";
-import { validate } from "../../shared/middleware/validate.middleware";
-import { created, deleted, ok } from "../../shared/utils/response";
+import { created, deleted, fail, ok } from "../../shared/utils/response";
 import { mergedParam, reqUser } from "../../shared/utils/route-param";
 import {
-	createDocument,
+	createDocumentFromUrl,
 	createDocumentSchema,
 	deleteDocument,
 	listDocuments,
+	uploadDocument,
 } from "./documents.service";
 
 const router = Router({ mergeParams: true });
 
-// In-memory storage — swap for S3/multer-s3 in production
 const upload = multer({
 	storage: multer.memoryStorage(),
 	limits: { fileSize: 25 * 1024 * 1024 }, // 25 MB
@@ -26,45 +25,49 @@ router.get("/", async (req, res) => {
 	ok(res, { documents });
 });
 
-// JSON metadata endpoint (already-uploaded URL): POST { name, mimeType, sizeBytes, url }
-router.post("/", validate(createDocumentSchema), async (req, res) => {
-	const doc = await createDocument(
-		mergedParam(req, "leadId"),
-		req.body,
-		reqUser(req),
-	);
-	created(res, doc, "Document saved");
-});
+// POST /api/v1/leads/:leadId/documents
+// Accepts multipart/form-data (file + optional name) for direct uploads,
+// or application/json with { name, mimeType, sizeBytes, url } when the
+// caller has already uploaded to external storage.
+router.post("/", upload.single("file"), async (req, res) => {
+	const leadId = mergedParam(req, "leadId");
+	const actor = reqUser(req);
 
-// Multipart upload — stub: returns a placeholder URL until storage is wired up
-router.post("/upload", upload.single("file"), async (req, res) => {
-	const file = req.file;
-	if (!file) {
-		res.status(400).json({
-			status: -1,
-			message: "Missing file",
-			data: { code: "VALIDATION_ERROR" },
-		});
+	if (req.file) {
+		const nameOverride =
+			typeof req.body.name === "string" && req.body.name.length > 0
+				? req.body.name
+				: undefined;
+		const doc = await uploadDocument(leadId, req.file, nameOverride, actor);
+		created(res, doc, "Document uploaded");
 		return;
 	}
 
+	const parsed = createDocumentSchema.safeParse(req.body);
+	if (!parsed.success) {
+		fail(res, 400, "Missing file or document metadata", {
+			code: "VALIDATION_ERROR",
+			errors: parsed.error.issues,
+		});
+		return;
+	}
+	const doc = await createDocumentFromUrl(leadId, parsed.data, actor);
+	created(res, doc, "Document saved");
+});
+
+// Backwards-compat alias for clients that already POST to /upload
+router.post("/upload", upload.single("file"), async (req, res) => {
+	const file = req.file;
+	if (!file) {
+		fail(res, 400, "Missing file", { code: "VALIDATION_ERROR" });
+		return;
+	}
 	const leadId = mergedParam(req, "leadId");
-	const name =
+	const nameOverride =
 		typeof req.body.name === "string" && req.body.name.length > 0
 			? req.body.name
-			: file.originalname;
-
-	const doc = await createDocument(
-		leadId,
-		{
-			name,
-			mimeType: file.mimetype,
-			sizeBytes: file.size,
-			// TODO: wire to S3 / object storage; placeholder for now
-			url: `https://files.example.com/leads/${leadId}/${file.originalname}`,
-		},
-		reqUser(req),
-	);
+			: undefined;
+	const doc = await uploadDocument(leadId, file, nameOverride, reqUser(req));
 	created(res, doc, "Document uploaded");
 });
 

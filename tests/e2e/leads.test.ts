@@ -11,14 +11,23 @@ describe("Leads API", () => {
 	beforeAll(async () => {
 		await truncateAll();
 
-		const admin = await createUser({ role: "ADMIN", email: "admin@leads.local" });
+		const admin = await createUser({
+			role: "ADMIN",
+			email: "admin@leads.local",
+		});
 		adminToken = makeToken("ADMIN", { sub: admin.id, email: admin.email });
 
-		const sales = await createUser({ role: "SALES", email: "sales@leads.local" });
+		const sales = await createUser({
+			role: "SALES",
+			email: "sales@leads.local",
+		});
 		salesUserId = sales.id;
 		salesToken = makeToken("SALES", { sub: sales.id, email: sales.email });
 
-		const other = await createUser({ role: "SALES", email: "other@leads.local" });
+		const other = await createUser({
+			role: "SALES",
+			email: "other@leads.local",
+		});
 		otherSalesId = other.id;
 	});
 
@@ -119,10 +128,7 @@ describe("Leads API", () => {
 
 		it("filters by status", async () => {
 			await createLead({ assignedUserId: salesUserId, status: "interested" });
-			const res = await api.get(
-				"/api/v1/leads?status=interested",
-				salesToken,
-			);
+			const res = await api.get("/api/v1/leads?status=interested", salesToken);
 			expect(res.status).toBe(200);
 			for (const lead of res.body.data.leads) {
 				expect(lead.status).toBe("interested");
@@ -132,10 +138,7 @@ describe("Leads API", () => {
 		it("filters by score range (scoreMin/scoreMax)", async () => {
 			await createLead({ assignedUserId: salesUserId, score: 90 });
 			await createLead({ assignedUserId: salesUserId, score: 30 });
-			const res = await api.get(
-				"/api/v1/leads?scoreMin=80",
-				salesToken,
-			);
+			const res = await api.get("/api/v1/leads?scoreMin=80", salesToken);
 			expect(res.status).toBe(200);
 			for (const lead of res.body.data.leads) {
 				expect(lead.score).toBeGreaterThanOrEqual(80);
@@ -155,7 +158,13 @@ describe("Leads API", () => {
 			const res1 = await api.get("/api/v1/leads?page=1&limit=2", adminToken);
 			expect(res1.status).toBe(200);
 			expect(res1.body.data.leads.length).toBeLessThanOrEqual(2);
-			expect(res1.body.data.total).toBeGreaterThanOrEqual(res1.body.data.leads.length);
+			expect(res1.body.data.total).toBeGreaterThanOrEqual(
+				res1.body.data.leads.length,
+			);
+			expect(typeof res1.body.data.hasMore).toBe("boolean");
+			expect(res1.body.data.hasMore).toBe(
+				res1.body.data.page * res1.body.data.limit < res1.body.data.total,
+			);
 		});
 
 		it("summary keys are status enum values", async () => {
@@ -231,7 +240,9 @@ describe("Leads API", () => {
 
 		it("requires auth (401)", async () => {
 			const lead = await createLead();
-			const res = await api.patch(`/api/v1/leads/${lead.id}`, { status: "won" });
+			const res = await api.patch(`/api/v1/leads/${lead.id}`, {
+				status: "won",
+			});
 			expect(res.status).toBe(401);
 		});
 	});
@@ -247,7 +258,9 @@ describe("Leads API", () => {
 
 			// Listing no longer shows it
 			const list = await api.get("/api/v1/leads", adminToken);
-			expect(list.body.data.leads.find((l: { id: string }) => l.id === lead.id)).toBeUndefined();
+			expect(
+				list.body.data.leads.find((l: { id: string }) => l.id === lead.id),
+			).toBeUndefined();
 
 			const restore = await api.post(
 				`/api/v1/leads/${lead.id}/restore`,

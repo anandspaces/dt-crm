@@ -1,7 +1,7 @@
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../../config/db";
-import { leadReminders } from "../../db/schema";
+import { leadReminders, users } from "../../db/schema";
 import type { JWTPayload } from "../../shared/types/auth";
 import { NotFoundError } from "../../shared/utils/errors";
 import { assertLeadAccess } from "../leads/leads.service";
@@ -14,20 +14,38 @@ export const createReminderSchema = z.object({
 export const updateReminderSchema = z.object({
 	title: z.string().min(1).max(500).optional(),
 	dueAt: z.iso.datetime().optional(),
-	completedAt: z.iso.datetime().nullable().optional(),
+	done: z.boolean().optional(),
 	dismissed: z.boolean().optional(),
 });
 
 export type CreateReminderInput = z.infer<typeof createReminderSchema>;
 export type UpdateReminderInput = z.infer<typeof updateReminderSchema>;
 
+function shapeReminder(
+	row: typeof leadReminders.$inferSelect,
+	authorName: string | null,
+) {
+	return {
+		id: row.id,
+		title: row.title,
+		dueAt: row.dueAt,
+		done: row.completedAt !== null,
+		dismissed: row.dismissed,
+		createdBy: authorName ?? null,
+		createdAt: row.createdAt,
+	};
+}
+
 export async function listReminders(leadId: string, actor: JWTPayload) {
 	await assertLeadAccess(leadId, actor);
-	return db
-		.select()
+	const rows = await db
+		.select({ reminder: leadReminders, author: users.name })
 		.from(leadReminders)
+		.leftJoin(users, eq(leadReminders.userId, users.id))
 		.where(eq(leadReminders.leadId, leadId))
 		.orderBy(asc(leadReminders.dueAt));
+
+	return rows.map((r) => shapeReminder(r.reminder, r.author));
 }
 
 export async function createReminder(
@@ -47,7 +65,14 @@ export async function createReminder(
 		})
 		.returning();
 	if (!row) throw new Error("Failed to create reminder");
-	return row;
+
+	const [author] = await db
+		.select({ name: users.name })
+		.from(users)
+		.where(eq(users.id, actor.sub))
+		.limit(1);
+
+	return shapeReminder(row, author?.name ?? null);
 }
 
 export async function updateReminder(
@@ -61,8 +86,8 @@ export async function updateReminder(
 	const updates: Partial<typeof leadReminders.$inferInsert> = {};
 	if (input.title !== undefined) updates.title = input.title;
 	if (input.dueAt !== undefined) updates.dueAt = new Date(input.dueAt);
-	if (input.completedAt !== undefined) {
-		updates.completedAt = input.completedAt ? new Date(input.completedAt) : null;
+	if (input.done !== undefined) {
+		updates.completedAt = input.done ? new Date() : null;
 	}
 	if (input.dismissed !== undefined) updates.dismissed = input.dismissed;
 
@@ -72,7 +97,16 @@ export async function updateReminder(
 		.where(and(eq(leadReminders.id, id), eq(leadReminders.leadId, leadId)))
 		.returning();
 	if (!row) throw new NotFoundError("Reminder not found");
-	return row;
+
+	const [author] = row.userId
+		? await db
+				.select({ name: users.name })
+				.from(users)
+				.where(eq(users.id, row.userId))
+				.limit(1)
+		: [undefined];
+
+	return shapeReminder(row, author?.name ?? null);
 }
 
 export async function deleteReminder(
@@ -81,7 +115,9 @@ export async function deleteReminder(
 	actor: JWTPayload,
 ) {
 	await assertLeadAccess(leadId, actor);
-	await db
+	const result = await db
 		.delete(leadReminders)
-		.where(and(eq(leadReminders.id, id), eq(leadReminders.leadId, leadId)));
+		.where(and(eq(leadReminders.id, id), eq(leadReminders.leadId, leadId)))
+		.returning({ id: leadReminders.id });
+	if (result.length === 0) throw new NotFoundError("Reminder not found");
 }

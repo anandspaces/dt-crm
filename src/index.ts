@@ -26,6 +26,7 @@ import {
 	requestContext,
 } from "./shared/middleware/request-logger.middleware";
 import { logger } from "./shared/utils/logger";
+import { UPLOADS_DIR } from "./shared/utils/storage";
 
 const app = express();
 
@@ -63,6 +64,10 @@ app.use("/api/v1/leads", authenticate, importsRouter);
 app.use("/api/v1/leads", authenticate, leadsRouter);
 app.use("/api/v1/pipelines", authenticate, pipelinesRouter);
 app.use("/api/v1/followups", authenticate, followupsGlobalRouter);
+
+// ─── Static uploads (lead documents) ──────────────────────────────────────────
+// Mirrors the URLs returned by the documents storage helper.
+app.use("/uploads", express.static(UPLOADS_DIR));
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => {

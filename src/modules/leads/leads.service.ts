@@ -83,9 +83,7 @@ export async function assertLeadAccess(id: string, actor: JWTPayload) {
 	return lead;
 }
 
-function applyName(
-	input: CreateLeadInput | UpdateLeadInput,
-): {
+function applyName(input: CreateLeadInput | UpdateLeadInput): {
 	firstName?: string;
 	lastName?: string | null;
 } {
@@ -284,6 +282,7 @@ export async function listLeads(query: ListLeadsQuery, actor: JWTPayload) {
 		total,
 		page: query.page,
 		limit: query.limit,
+		hasMore: query.page * query.limit < total,
 		summary,
 	};
 }

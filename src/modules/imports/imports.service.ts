@@ -1,3 +1,4 @@
+import { and, inArray, isNull } from "drizzle-orm";
 import { db } from "../../config/db";
 import { leadActivities, leads } from "../../db/schema";
 import type { JWTPayload } from "../../shared/types/auth";
@@ -64,12 +65,6 @@ function cell(row: string[], idx: number): string {
 	return row[idx] ?? "";
 }
 
-function normalizeSource(v: string): string {
-	if (!v) return "OTHER";
-	const upper = v.trim().toUpperCase();
-	return (SOURCE_VALUES as readonly string[]).includes(upper) ? upper : "OTHER";
-}
-
 function normalizeStatus(v: string): string {
 	if (!v) return "fresh";
 	const lower = v.trim().toLowerCase();
@@ -79,7 +74,15 @@ function normalizeStatus(v: string): string {
 function normalizePriority(v: string): string {
 	if (!v) return "MEDIUM";
 	const upper = v.trim().toUpperCase();
-	return (PRIORITY_VALUES as readonly string[]).includes(upper) ? upper : "MEDIUM";
+	return (PRIORITY_VALUES as readonly string[]).includes(upper)
+		? upper
+		: "MEDIUM";
+}
+
+interface StagedRow {
+	lineNumber: number;
+	phoneNormalized: string;
+	insert: typeof leads.$inferInsert;
 }
 
 export async function importLeadsFromCsv(
@@ -98,13 +101,14 @@ export async function importLeadsFromCsv(
 		budget: colIdx("budget"),
 		requirement: colIdx("requirement"),
 		status: colIdx("status"),
+		notes: colIdx("notes"),
 		assignedTo: colIdx("assignedto"),
 		tags: colIdx("tags"),
 		priority: colIdx("priority"),
 	};
 
 	const errors: ImportError[] = [];
-	const inserts: (typeof leads.$inferInsert)[] = [];
+	const staged: StagedRow[] = [];
 
 	for (let i = 0; i < rows.length; i++) {
 		const r = rows[i];
@@ -112,6 +116,7 @@ export async function importLeadsFromCsv(
 		const lineNumber = i + 2;
 		const name = cell(r, idx.name);
 		const phone = cell(r, idx.phone);
+		const sourceRaw = cell(r, idx.source);
 
 		if (!name) {
 			errors.push({ row: lineNumber, reason: "Missing name" });
@@ -121,35 +126,82 @@ export async function importLeadsFromCsv(
 			errors.push({ row: lineNumber, reason: "Invalid phone number" });
 			continue;
 		}
+		if (!sourceRaw) {
+			errors.push({ row: lineNumber, reason: "Missing source" });
+			continue;
+		}
+		const sourceUpper = sourceRaw.trim().toUpperCase();
+		if (!(SOURCE_VALUES as readonly string[]).includes(sourceUpper)) {
+			errors.push({
+				row: lineNumber,
+				reason: `Unknown source: ${sourceRaw}`,
+			});
+			continue;
+		}
 
 		const { firstName, lastName } = splitName(name);
 		const tagsRaw = cell(r, idx.tags);
-		inserts.push({
-			firstName,
-			lastName: lastName ?? null,
-			phone,
-			email: cell(r, idx.email) || null,
-			source: normalizeSource(cell(r, idx.source)),
-			city: cell(r, idx.city) || null,
-			budget: cell(r, idx.budget) || null,
-			requirement: cell(r, idx.requirement) || null,
-			status: normalizeStatus(cell(r, idx.status)) as never,
-			priority: normalizePriority(cell(r, idx.priority)) as never,
-			tags: tagsRaw
-				? tagsRaw
-						.split(/[;|]/)
-						.map((s) => s.trim())
-						.filter(Boolean)
-				: [],
-			assignedUserId: cell(r, idx.assignedTo) || null,
+		staged.push({
+			lineNumber,
+			phoneNormalized: phone,
+			insert: {
+				firstName,
+				lastName: lastName ?? null,
+				phone,
+				email: cell(r, idx.email) || null,
+				source: sourceUpper as never,
+				city: cell(r, idx.city) || null,
+				budget: cell(r, idx.budget) || null,
+				requirement: cell(r, idx.requirement) || null,
+				status: normalizeStatus(cell(r, idx.status)) as never,
+				priority: normalizePriority(cell(r, idx.priority)) as never,
+				notes: cell(r, idx.notes) || null,
+				tags: tagsRaw
+					? tagsRaw
+							.split(/[;|]/)
+							.map((s) => s.trim())
+							.filter(Boolean)
+					: [],
+				assignedUserId: cell(r, idx.assignedTo) || null,
+			},
 		});
 	}
 
+	let skipped = 0;
+	let toInsert = staged;
+
+	if (staged.length > 0) {
+		const phones = [...new Set(staged.map((s) => s.phoneNormalized))];
+		const existing = await db
+			.select({ phone: leads.phone })
+			.from(leads)
+			.where(and(inArray(leads.phone, phones), isNull(leads.deletedAt)));
+		const existingSet = new Set(existing.map((r) => r.phone));
+
+		// Also de-dupe phones that appear multiple times within the same CSV:
+		// keep the first, count the rest as skipped.
+		const seenInBatch = new Set<string>();
+		const filtered: StagedRow[] = [];
+		for (const row of staged) {
+			if (existingSet.has(row.phoneNormalized)) {
+				skipped++;
+				continue;
+			}
+			if (seenInBatch.has(row.phoneNormalized)) {
+				skipped++;
+				continue;
+			}
+			seenInBatch.add(row.phoneNormalized);
+			filtered.push(row);
+		}
+		toInsert = filtered;
+	}
+
 	let inserted: { id: string }[] = [];
-	if (inserts.length > 0) {
+	if (toInsert.length > 0) {
 		inserted = await db
 			.insert(leads)
-			.values(inserts)
+			.values(toInsert.map((s) => s.insert))
 			.returning({ id: leads.id });
 	}
 
@@ -166,7 +218,7 @@ export async function importLeadsFromCsv(
 
 	return {
 		imported: inserted.length,
-		skipped: errors.length,
+		skipped,
 		errors,
 	};
 }

@@ -14,27 +14,27 @@ import {
 const router = Router({ mergeParams: true });
 
 router.get("/", async (req, res) => {
-	const notes = await listNotes(mergedParam(req, "leadId"), reqUser(req));
-	ok(res, notes);
+	const result = await listNotes(mergedParam(req, "leadId"), reqUser(req));
+	ok(res, result);
 });
 
 router.post("/", validate(createNoteSchema), async (req, res) => {
 	const note = await createNote(
 		mergedParam(req, "leadId"),
-		req.body.content,
+		req.body.text,
 		reqUser(req),
 	);
-	created(res, note);
+	created(res, note, "Note added");
 });
 
 router.patch("/:noteId", validate(updateNoteSchema), async (req, res) => {
 	const note = await updateNote(
 		mergedParam(req, "leadId"),
 		mergedParam(req, "noteId"),
-		req.body.content,
+		req.body.text,
 		reqUser(req),
 	);
-	ok(res, note);
+	ok(res, note, "Note updated");
 });
 
 router.delete("/:noteId", async (req, res) => {
@@ -43,7 +43,7 @@ router.delete("/:noteId", async (req, res) => {
 		mergedParam(req, "noteId"),
 		reqUser(req),
 	);
-	deleted(res);
+	deleted(res, "Note deleted");
 });
 
 export default router;
