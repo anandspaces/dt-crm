@@ -48,13 +48,16 @@ export async function register(
 		throw new ForbiddenError("Only ADMIN can register new users");
 	}
 
-	const existing = await db
-		.select({ id: users.id })
+	const [existing] = await db
+		.select({ id: users.id, isEmailVerified: users.isEmailVerified })
 		.from(users)
 		.where(eq(users.email, input.email))
 		.limit(1);
 
-	if (existing.length > 0) {
+	if (existing) {
+		if (!existing.isEmailVerified) {
+			return "pending_verification" as const;
+		}
 		throw new ConflictError("Email already in use");
 	}
 
@@ -70,6 +73,7 @@ export async function register(
 		.returning();
 
 	if (!user) throw new Error("Failed to create user");
+	return "created" as const;
 }
 
 export async function login(input: LoginInput) {

@@ -101,7 +101,7 @@ describe("POST /api/v1/auth/register", () => {
 		expect(res.body.data.message).toBeDefined();
 	});
 
-	it("returns 409 on duplicate email", async () => {
+	it("returns 201 with pending_verification message on duplicate unverified email", async () => {
 		await api.post(
 			"/api/v1/auth/register",
 			{ name: "Dup One", email: "dup@test.local", password: "password123" },
@@ -112,7 +112,8 @@ describe("POST /api/v1/auth/register", () => {
 			{ name: "Dup Two", email: "dup@test.local", password: "password123" },
 			adminToken,
 		);
-		expect(res.status).toBe(409);
+		expect(res.status).toBe(201);
+		expect(res.body.data.message).toBe("Email registered, pending verification");
 	});
 
 	it("returns 403 when a non-admin attempts registration after first user exists", async () => {

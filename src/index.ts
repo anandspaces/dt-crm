@@ -26,12 +26,7 @@ const app = express();
 
 // Security headers
 app.use(helmet());
-app.use(
-	cors({
-		origin: env.CORS_ORIGIN === "*" ? "*" : env.CORS_ORIGIN.split(","),
-		credentials: true,
-	}),
-);
+app.use(cors({ origin: "*", methods: "*", allowedHeaders: "*" }));
 
 // ─── Webhook routes — MUST be before express.json() ──────────────────────────
 // Webhooks use express.raw() inline for HMAC signature verification
