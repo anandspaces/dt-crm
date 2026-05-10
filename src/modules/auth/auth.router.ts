@@ -21,6 +21,7 @@ router.post(
 	validate(registerSchema),
 	async (req, res) => {
 		await authService.register(req.body, req.user);
+		await authService.sendOtp(req.body.email);
 		created(res, { message: "Account created. Please verify your email." });
 	},
 );
