@@ -14,6 +14,15 @@ export function errorMiddleware(
 		return;
 	}
 
+	// body-parser throws SyntaxError with type "entity.parse.failed" on invalid JSON
+	if (
+		err instanceof SyntaxError &&
+		(err as { type?: string }).type === "entity.parse.failed"
+	) {
+		fail(res, 400, "Invalid JSON body", { code: "INVALID_JSON" });
+		return;
+	}
+
 	if (err instanceof Error) {
 		logger.error("[unhandled error]", err.message, err.stack);
 	} else {
