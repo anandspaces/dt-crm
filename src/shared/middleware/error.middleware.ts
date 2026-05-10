@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../utils/errors";
+import { logger } from "../utils/logger";
 import { fail } from "../utils/response";
 
 export function errorMiddleware(
@@ -14,9 +15,9 @@ export function errorMiddleware(
 	}
 
 	if (err instanceof Error) {
-		console.error("[unhandled error]", err.message, err.stack);
+		logger.error("[unhandled error]", err.message, err.stack);
 	} else {
-		console.error("[unhandled error]", err);
+		logger.error("[unhandled error]", err);
 	}
 
 	fail(res, 500, "An unexpected error occurred", { code: "INTERNAL_ERROR" });

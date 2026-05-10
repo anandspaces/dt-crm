@@ -15,6 +15,7 @@ import usersRouter from "./modules/users/users.router";
 import webhooksRouter from "./modules/webhooks/webhooks.router";
 
 import { errorMiddleware } from "./shared/middleware/error.middleware";
+import { logger } from "./shared/utils/logger";
 import {
 	globalApiLimiter,
 	loginLimiter,
@@ -63,14 +64,14 @@ app.use(errorMiddleware);
 async function start(): Promise<void> {
 	try {
 		await verifyDatabaseConnection();
-		console.log("[db] connected");
+		logger.info("[db] connected");
 	} catch (err) {
-		console.error("[db] connection failed:", err);
+		logger.error("[db] connection failed:", err);
 		process.exit(1);
 	}
 
 	app.listen(env.PORT, () => {
-		console.log(
+		logger.info(
 			`[server] CRM running on http://localhost:${env.PORT} (${env.NODE_ENV})`,
 		);
 	});

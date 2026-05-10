@@ -77,7 +77,7 @@ describe("POST /api/v1/auth/register", () => {
 		);
 		expect(res.status).toBe(201);
 		expect(res.body.data.user.role).toBe("SALES");
-		expect(res.body.data.accessToken).toBeDefined();
+		expect(res.body.data.accessToken).toBeUndefined();
 	});
 
 	it("allows unauthenticated self-registration as SALES when users exist", async () => {
@@ -89,7 +89,7 @@ describe("POST /api/v1/auth/register", () => {
 		});
 		expect(res.status).toBe(201);
 		expect(res.body.data.user.role).toBe("SALES");
-		expect(res.body.data.accessToken).toBeDefined();
+		expect(res.body.data.accessToken).toBeUndefined();
 	});
 
 	it("forces SALES on public signup when a privileged role is requested", async () => {

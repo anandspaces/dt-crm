@@ -1,4 +1,5 @@
 import { randomBytes, randomInt } from "node:crypto";
+import { logger } from "../../shared/utils/logger";
 import bcrypt from "bcryptjs";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import nodemailer from "nodemailer";
@@ -70,8 +71,7 @@ export async function register(
 
 	if (!user) throw new Error("Failed to create user");
 
-	const accessToken = signAccessToken(tokenPayload(user));
-	return { user: safeUser(user), accessToken };
+	return { user: safeUser(user) };
 }
 
 export async function login(input: LoginInput) {
@@ -134,10 +134,10 @@ export async function forgotPassword(email: string) {
 				text: `Reset your password within 15 minutes:\n\n${resetUrl}`,
 			});
 		} catch (err) {
-			console.error("[smtp] Failed to send password reset email:", err);
+			logger.error("[smtp] Failed to send password reset email:", err);
 		}
 	} else {
-		console.log(`[dev] Password reset URL for ${email}: ${resetUrl}`);
+		logger.info(`[dev] Password reset URL for ${email}: ${resetUrl}`);
 	}
 }
 
@@ -176,10 +176,10 @@ export async function sendOtp(email: string) {
 				text: `Your one-time verification code is: ${otp}\n\nThis code expires in 10 minutes.`,
 			});
 		} catch (err) {
-			console.error("[smtp] Failed to send OTP email:", err);
+			logger.error("[smtp] Failed to send OTP email:", err);
 		}
 	} else {
-		console.log(`[dev] OTP for ${email}: ${otp}`);
+		logger.info(`[dev] OTP for ${email}: ${otp}`);
 	}
 }
 

@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { env } from "../../../config/env";
+import { logger } from "../../../shared/utils/logger";
 
 export function verifyGoogleSignature(
 	rawBody: Buffer,
@@ -7,7 +8,7 @@ export function verifyGoogleSignature(
 ): boolean {
 	const secret = env.GOOGLE_ADS_WEBHOOK_SECRET;
 	if (!secret) {
-		console.warn(
+		logger.warn(
 			"[webhook] GOOGLE_ADS_WEBHOOK_SECRET not set — skipping signature check",
 		);
 		return true;

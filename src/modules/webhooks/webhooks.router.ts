@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import express, { Router } from "express";
 import { db } from "../../config/db";
 import { webhookEvents } from "../../db/schema";
+import { logger } from "../../shared/utils/logger";
 import { fail, ok } from "../../shared/utils/response";
 import { processGoogleWebhook } from "../integrations/google-ads/google-ads.service";
 import { verifyGoogleSignature } from "../integrations/google-ads/google-ads.webhook";
@@ -51,7 +52,7 @@ router.post(
 
 		processGoogleWebhook(event.id, payload).catch((err: unknown) => {
 			const msg = err instanceof Error ? err.message : String(err);
-			console.error(
+			logger.error(
 				`[webhook] Google Ads processing failed for event ${event.id}:`,
 				msg,
 			);
@@ -59,7 +60,7 @@ router.post(
 			db.update(webhookEvents)
 				.set({ errorMessage: msg })
 				.where(eq(webhookEvents.id, event.id))
-				.catch(console.error);
+				.catch((e) => logger.error("[webhook] Failed to update errorMessage:", e));
 		});
 	},
 );
