@@ -3,6 +3,7 @@ export * from "./schema/activities";
 export * from "./schema/ai";
 export * from "./schema/auth";
 export * from "./schema/automation";
+export * from "./schema/otp";
 export * from "./schema/enums";
 export * from "./schema/followups";
 export * from "./schema/imports";

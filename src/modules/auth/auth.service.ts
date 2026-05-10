@@ -1,10 +1,10 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomInt } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import nodemailer from "nodemailer";
 import { db } from "../../config/db";
 import { env } from "../../config/env";
-import { passwordResetTokens, users } from "../../db/schema";
+import { emailOtps, passwordResetTokens, users } from "../../db/schema";
 import type { JWTPayload } from "../../shared/types/auth";
 import { hashToken, signAccessToken } from "../../shared/utils/crypto";
 import {
@@ -120,21 +120,110 @@ export async function forgotPassword(email: string) {
 
 	const resetUrl = `${env.APP_URL ?? "http://localhost:3000"}/reset-password?token=${rawToken}`;
 
-	if (env.SMTP_HOST) {
-		const transporter = nodemailer.createTransport({
-			host: env.SMTP_HOST,
-			port: env.SMTP_PORT ?? 587,
-			auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
-		});
-		await transporter.sendMail({
-			from: env.SMTP_FROM,
-			to: user.email,
-			subject: "Password Reset — Dextora CRM",
-			text: `Reset your password within 15 minutes:\n\n${resetUrl}`,
-		});
+	if (env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS) {
+		try {
+			const transporter = nodemailer.createTransport({
+				host: env.SMTP_HOST,
+				port: env.SMTP_PORT ?? 587,
+				auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
+			});
+			await transporter.sendMail({
+				from: env.SMTP_FROM,
+				to: user.email,
+				subject: "Password Reset — Dextora CRM",
+				text: `Reset your password within 15 minutes:\n\n${resetUrl}`,
+			});
+		} catch (err) {
+			console.error("[smtp] Failed to send password reset email:", err);
+		}
 	} else {
 		console.log(`[dev] Password reset URL for ${email}: ${resetUrl}`);
 	}
+}
+
+export async function sendOtp(email: string) {
+	const [user] = await db
+		.select()
+		.from(users)
+		.where(eq(users.email, email))
+		.limit(1);
+
+	if (!user) return;
+
+	// Invalidate any existing unused OTPs for this user
+	await db
+		.update(emailOtps)
+		.set({ usedAt: new Date() })
+		.where(and(eq(emailOtps.userId, user.id), isNull(emailOtps.usedAt)));
+
+	const otp = randomInt(100000, 1000000).toString();
+	const otpHash = hashToken(otp);
+	const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+	await db.insert(emailOtps).values({ userId: user.id, otpHash, expiresAt });
+
+	if (env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS) {
+		try {
+			const transporter = nodemailer.createTransport({
+				host: env.SMTP_HOST,
+				port: env.SMTP_PORT ?? 587,
+				auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
+			});
+			await transporter.sendMail({
+				from: env.SMTP_FROM,
+				to: user.email,
+				subject: "Your verification code — Dextora CRM",
+				text: `Your one-time verification code is: ${otp}\n\nThis code expires in 10 minutes.`,
+			});
+		} catch (err) {
+			console.error("[smtp] Failed to send OTP email:", err);
+		}
+	} else {
+		console.log(`[dev] OTP for ${email}: ${otp}`);
+	}
+}
+
+export async function verifyOtp(email: string, otp: string) {
+	const [user] = await db
+		.select()
+		.from(users)
+		.where(eq(users.email, email))
+		.limit(1);
+
+	if (!user) throw new UnauthorizedError("Invalid credentials");
+
+	const [otpRow] = await db
+		.select()
+		.from(emailOtps)
+		.where(
+			and(
+				eq(emailOtps.userId, user.id),
+				isNull(emailOtps.usedAt),
+				gt(emailOtps.expiresAt, new Date()),
+			),
+		)
+		.orderBy(emailOtps.createdAt)
+		.limit(1);
+
+	if (!otpRow || otpRow.otpHash !== hashToken(otp)) {
+		throw new UnauthorizedError("Invalid or expired OTP");
+	}
+
+	await db
+		.update(emailOtps)
+		.set({ usedAt: new Date() })
+		.where(eq(emailOtps.id, otpRow.id));
+
+	const [updated] = await db
+		.update(users)
+		.set({ isEmailVerified: true, updatedAt: new Date() })
+		.where(eq(users.id, user.id))
+		.returning();
+
+	if (!updated) throw new Error("Failed to update user");
+
+	const accessToken = signAccessToken(tokenPayload(updated));
+	return { user: safeUser(updated), accessToken };
 }
 
 export async function resetPassword(rawToken: string, newPassword: string) {

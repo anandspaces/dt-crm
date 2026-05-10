@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { otpLimiter } from "../../shared/middleware/rate-limit";
 import { validate } from "../../shared/middleware/validate.middleware";
 import { created, ok } from "../../shared/utils/response";
 import { optionalAuth } from "./auth.middleware";
@@ -7,6 +8,8 @@ import {
 	loginSchema,
 	registerSchema,
 	resetPasswordSchema,
+	sendOtpSchema,
+	verifyOtpSchema,
 } from "./auth.schema";
 import * as authService from "./auth.service";
 
@@ -44,5 +47,20 @@ router.post(
 		ok(res, { message: "Password reset successfully" });
 	},
 );
+
+router.post(
+	"/send-otp",
+	otpLimiter,
+	validate(sendOtpSchema),
+	async (req, res) => {
+		await authService.sendOtp(req.body.email);
+		ok(res, { message: "If the email exists, an OTP has been sent" });
+	},
+);
+
+router.post("/verify-otp", validate(verifyOtpSchema), async (req, res) => {
+	const result = await authService.verifyOtp(req.body.email, req.body.otp);
+	ok(res, result);
+});
 
 export default router;

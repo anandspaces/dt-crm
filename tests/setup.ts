@@ -88,7 +88,7 @@ export async function truncateAll() {
 		`TRUNCATE TABLE
       lead_tags, lead_notes, lead_activities, ai_lead_summaries,
       followups, lead_imports, webhook_events, password_reset_tokens,
-      leads, pipeline_stages, pipelines, tags,
+      email_otps, leads, pipeline_stages, pipelines, tags,
       automation_rules, integrations, users
     RESTART IDENTITY CASCADE`,
 	);

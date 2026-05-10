@@ -76,7 +76,8 @@ async function start(): Promise<void> {
 	});
 }
 
-start();
-
+if (import.meta.main) {
+	start();
+}
 
 export default app;
