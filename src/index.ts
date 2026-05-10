@@ -59,10 +59,12 @@ app.get("/health", (_req, res) => {
 // ─── Global error handler (must be last) ─────────────────────────────────────
 app.use(errorMiddleware);
 
-app.listen(env.PORT, () => {
-	console.log(
-		`[server] Dextora CRM running on http://localhost:${env.PORT} (${env.NODE_ENV})`,
-	);
-});
+if (import.meta.main) {
+	app.listen(env.PORT, () => {
+		console.log(
+			`[server] Dextora CRM running on http://localhost:${env.PORT} (${env.NODE_ENV})`,
+		);
+	});
+}
 
 export default app;

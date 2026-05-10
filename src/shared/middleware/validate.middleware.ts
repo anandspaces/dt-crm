@@ -1,9 +1,9 @@
 import type { NextFunction, Request, Response } from "express";
-import type { ZodTypeAny } from "zod";
+import type { ZodType } from "zod";
 import { fail } from "../utils/response";
 
 export function validate(
-	schema: ZodTypeAny,
+	schema: ZodType,
 	target: "body" | "query" | "params" = "body",
 ) {
 	return (req: Request, res: Response, next: NextFunction): void => {
@@ -15,7 +15,13 @@ export function validate(
 			});
 			return;
 		}
-		Object.assign(req, { [target]: result.data });
+		// req.query is a non-writable getter in Express v5; Object.defineProperty works for all targets
+		Object.defineProperty(req, target, {
+			value: result.data,
+			writable: true,
+			configurable: true,
+			enumerable: true,
+		});
 		next();
 	};
 }

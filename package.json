@@ -10,7 +10,14 @@
 		"check": "biome check .",
 		"check:fix": "biome check . --write",
 		"db:generate": "drizzle-kit generate --config drizzle/drizzle.config.ts",
-		"db:migrate": "drizzle-kit migrate --config drizzle/drizzle.config.ts"
+		"db:migrate": "drizzle-kit migrate --config drizzle/drizzle.config.ts",
+		"db:test:setup": "bun --env-file .env.test tests/setup.ts",
+		"test": "bun test --env-file .env.test",
+		"test:unit": "bun test --env-file .env.test tests/unit",
+		"test:e2e": "bun test --env-file .env.test tests/e2e",
+		"test:watch": "bun test --env-file .env.test --watch",
+		"test:coverage": "bun test --env-file .env.test --coverage",
+		"test:ci": "bun test --env-file .env.test --bail"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.14",
@@ -20,7 +27,9 @@
 		"@types/jsonwebtoken": "^9.0.10",
 		"@types/multer": "^2.1.0",
 		"@types/nodemailer": "^8.0.0",
-		"drizzle-kit": "^0.31.10"
+		"@types/supertest": "^7.2.0",
+		"drizzle-kit": "^0.31.10",
+		"supertest": "^7.2.2"
 	},
 	"peerDependencies": {
 		"typescript": "^5"
