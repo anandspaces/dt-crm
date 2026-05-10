@@ -3,6 +3,7 @@
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
+import { verifyDatabaseConnection } from "./config/db";
 import { env } from "./config/env";
 
 import { authenticate } from "./modules/auth/auth.middleware";
@@ -59,12 +60,23 @@ app.get("/health", (_req, res) => {
 // ─── Global error handler (must be last) ─────────────────────────────────────
 app.use(errorMiddleware);
 
-if (import.meta.main) {
+async function start(): Promise<void> {
+	try {
+		await verifyDatabaseConnection();
+		console.log("[db] connected");
+	} catch (err) {
+		console.error("[db] connection failed:", err);
+		process.exit(1);
+	}
+
 	app.listen(env.PORT, () => {
 		console.log(
-			`[server] Dextora CRM running on http://localhost:${env.PORT} (${env.NODE_ENV})`,
+			`[server] CRM running on http://localhost:${env.PORT} (${env.NODE_ENV})`,
 		);
 	});
 }
+
+start();
+
 
 export default app;

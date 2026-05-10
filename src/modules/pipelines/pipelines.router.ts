@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { guard } from "../../shared/middleware/rbac.middleware";
 import { validate } from "../../shared/middleware/validate.middleware";
-import { created, noContent, ok } from "../../shared/utils/response";
+import { created, deleted, ok } from "../../shared/utils/response";
 import { routeParam } from "../../shared/utils/route-param";
 import {
 	addStageSchema,
@@ -72,7 +72,7 @@ router.delete(
 	guard("ADMIN", "MANAGER"),
 	async (req, res) => {
 		await pipelinesService.deleteStage(routeParam(req.params.stageId));
-		noContent(res);
+		deleted(res);
 	},
 );
 

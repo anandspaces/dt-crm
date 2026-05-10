@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { guard } from "../../shared/middleware/rbac.middleware";
 import { validate } from "../../shared/middleware/validate.middleware";
-import { noContent, ok } from "../../shared/utils/response";
+import { deleted, ok } from "../../shared/utils/response";
 import { reqUser, routeParam } from "../../shared/utils/route-param";
 import { listUsersQuerySchema, updateUserSchema } from "./users.schema";
 import * as usersService from "./users.service";
@@ -46,7 +46,7 @@ router.patch("/:id", validate(updateUserSchema), async (req, res) => {
 
 router.delete("/:id", guard("ADMIN"), async (req, res) => {
 	await usersService.deactivateUser(routeParam(req.params.id), reqUser(req));
-	noContent(res);
+	deleted(res, "User deactivated");
 });
 
 export default router;

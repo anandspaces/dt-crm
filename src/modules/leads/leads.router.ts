@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { guard } from "../../shared/middleware/rbac.middleware";
 import { validate } from "../../shared/middleware/validate.middleware";
-import { created, noContent, ok } from "../../shared/utils/response";
+import { created, deleted, ok } from "../../shared/utils/response";
 import { reqUser, routeParam } from "../../shared/utils/route-param";
 import activitiesRouter from "../activities/activities.router";
 import notesRouter from "../activities/notes.router";
@@ -61,7 +61,7 @@ router.patch("/:id", validate(updateLeadSchema), async (req, res) => {
 
 router.delete("/:id", async (req, res) => {
 	await leadsService.softDeleteLead(routeParam(req.params.id), reqUser(req));
-	noContent(res);
+	deleted(res);
 });
 
 router.post("/:id/restore", guard("ADMIN"), async (req, res) => {

@@ -1,4 +1,5 @@
 import { rateLimit } from "express-rate-limit";
+import { envelopeStatus } from "../utils/response";
 
 export const globalApiLimiter = rateLimit({
 	windowMs: 60_000,
@@ -6,7 +7,7 @@ export const globalApiLimiter = rateLimit({
 	standardHeaders: true,
 	legacyHeaders: false,
 	message: {
-		status: 429,
+		status: envelopeStatus.error,
 		message: "Too many requests",
 		data: { code: "RATE_LIMITED" },
 	},
@@ -19,7 +20,7 @@ export const loginLimiter = rateLimit({
 	standardHeaders: true,
 	legacyHeaders: false,
 	message: {
-		status: 429,
+		status: envelopeStatus.error,
 		message: "Too many login attempts",
 		data: { code: "RATE_LIMITED" },
 	},
@@ -31,7 +32,7 @@ export const webhookLimiter = rateLimit({
 	standardHeaders: true,
 	legacyHeaders: false,
 	message: {
-		status: 429,
+		status: envelopeStatus.error,
 		message: "Too many requests",
 		data: { code: "RATE_LIMITED" },
 	},

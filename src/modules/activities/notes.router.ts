@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { validate } from "../../shared/middleware/validate.middleware";
-import { created, noContent, ok } from "../../shared/utils/response";
+import { created, deleted, ok } from "../../shared/utils/response";
 import { mergedParam, reqUser } from "../../shared/utils/route-param";
 import {
 	createNote,
@@ -43,7 +43,7 @@ router.delete("/:noteId", async (req, res) => {
 		mergedParam(req, "noteId"),
 		reqUser(req),
 	);
-	noContent(res);
+	deleted(res);
 });
 
 export default router;

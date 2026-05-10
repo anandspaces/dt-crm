@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import express, { Router } from "express";
 import { db } from "../../config/db";
 import { webhookEvents } from "../../db/schema";
-import { fail } from "../../shared/utils/response";
+import { fail, ok } from "../../shared/utils/response";
 import { processGoogleWebhook } from "../integrations/google-ads/google-ads.service";
 import { verifyGoogleSignature } from "../integrations/google-ads/google-ads.webhook";
 
@@ -47,11 +47,7 @@ router.post(
 		}
 
 		// Respond immediately — process asynchronously (fire-and-forget)
-		res.status(200).json({
-			status: 200,
-			message: "Webhook received",
-			data: { received: true },
-		});
+		ok(res, { received: true }, "Webhook received");
 
 		processGoogleWebhook(event.id, payload).catch((err: unknown) => {
 			const msg = err instanceof Error ? err.message : String(err);
