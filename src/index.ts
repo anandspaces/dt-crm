@@ -21,6 +21,10 @@ import {
 	loginLimiter,
 	webhookLimiter,
 } from "./shared/middleware/rate-limit";
+import {
+	logRequestBody,
+	requestContext,
+} from "./shared/middleware/request-logger.middleware";
 import { logger } from "./shared/utils/logger";
 
 const app = express();
@@ -29,12 +33,21 @@ const app = express();
 app.use(helmet());
 app.use(cors({ origin: "*", methods: "*", allowedHeaders: "*" }));
 
+// ─── Request context (req.id, timer, response capture) ──────────────────────
+// MUST be first so every downstream log line can correlate via req.id.
+app.use(requestContext);
+
 // ─── Webhook routes — MUST be before express.json() ──────────────────────────
-// Webhooks use express.raw() inline for HMAC signature verification
+// Webhooks use express.raw() inline for HMAC signature verification.
+// They skip the JSON-aware request-body logger; requestContext still fires
+// the response log (and a fallback request log) on finish.
 app.use("/api/v1/webhooks", webhookLimiter, webhooksRouter);
 
 // ─── JSON body parser for all other routes ───────────────────────────────────
 app.use(express.json({ limit: "10mb" }));
+
+// Now that req.body is parsed, log the request line with the (sanitized) body.
+app.use(logRequestBody);
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
 app.use("/api/v1/auth/login", loginLimiter);
@@ -59,19 +72,42 @@ app.get("/health", (_req, res) => {
 // ─── Global error handler (must be last) ─────────────────────────────────────
 app.use(errorMiddleware);
 
+// ─── Process-level safety nets ───────────────────────────────────────────────
+// Logs and continues on unhandledRejection (a typical app bug — don't crash).
+// Logs and exits on uncaughtException (state may be corrupt).
+process.on("unhandledRejection", (reason) => {
+	const err = reason instanceof Error ? reason : new Error(String(reason));
+	logger.error("unhandledRejection", {
+		message: err.message,
+		stack: env.NODE_ENV !== "production" ? err.stack : undefined,
+	});
+});
+
+process.on("uncaughtException", (err) => {
+	logger.error("uncaughtException", {
+		message: err.message,
+		stack: env.NODE_ENV !== "production" ? err.stack : undefined,
+	});
+	// Exit with non-zero so the process supervisor restarts us.
+	process.exit(1);
+});
+
 async function start(): Promise<void> {
 	try {
 		await verifyDatabaseConnection();
-		logger.info("[db] connected");
+		logger.info("db connected");
 	} catch (err) {
-		logger.error("[db] connection failed:", err);
+		logger.error("db connection failed", {
+			message: err instanceof Error ? err.message : String(err),
+		});
 		process.exit(1);
 	}
 
 	app.listen(env.PORT, () => {
-		logger.info(
-			`[server] CRM running on http://localhost:${env.PORT} (${env.NODE_ENV})`,
-		);
+		logger.info("server up", {
+			url: `http://localhost:${env.PORT}`,
+			env: env.NODE_ENV,
+		});
 	});
 }
 

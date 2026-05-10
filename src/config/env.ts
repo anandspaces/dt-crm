@@ -22,6 +22,9 @@ const envSchema = z.object({
 	SMTP_FROM: z.string().default("noreply@dextora.com"),
 
 	APP_URL: z.string().default("http://localhost:3000"),
+
+	LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).optional(),
+	LOG_FORMAT: z.enum(["text", "json"]).default("text"),
 });
 
 export const env = envSchema.parse(process.env);
