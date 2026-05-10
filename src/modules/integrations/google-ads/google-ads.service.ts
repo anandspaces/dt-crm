@@ -90,7 +90,7 @@ export async function processGoogleWebhook(
 						source: leadInput.source,
 						sourceProvider: leadInput.sourceProvider,
 						metadataJson: leadInput.metadataJson,
-						status: "NEW",
+						status: "fresh",
 						priority: "MEDIUM",
 					})
 					.returning({ id: leads.id });
@@ -108,7 +108,7 @@ export async function processGoogleWebhook(
 					source: leadInput.source,
 					sourceProvider: leadInput.sourceProvider,
 					metadataJson: leadInput.metadataJson,
-					status: "NEW",
+					status: "fresh",
 					priority: "MEDIUM",
 				})
 				.returning({ id: leads.id });

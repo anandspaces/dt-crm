@@ -7,15 +7,17 @@ export const userRoleEnum = pgEnum("user_role", [
 	"SUPPORT",
 ]);
 
+// Spec lead-status values (lowercase, real-estate lifecycle)
 export const leadStatusEnum = pgEnum("lead_status", [
-	"NEW",
-	"CONTACTED",
-	"QUALIFIED",
-	"PROPOSAL_SENT",
-	"NEGOTIATION",
-	"WON",
-	"LOST",
-	"ARCHIVED",
+	"fresh",
+	"contacted",
+	"interested",
+	"appointment",
+	"demo",
+	"negotiation",
+	"won",
+	"lost",
+	"not_interested",
 ]);
 
 export const leadPriorityEnum = pgEnum("lead_priority", [
@@ -35,6 +37,15 @@ export const activityTypeEnum = pgEnum("activity_type", [
 	"ASSIGNMENT",
 	"FOLLOWUP",
 	"SYSTEM",
+]);
+
+// Timeline display kind (UI color/icon hint)
+export const timelineKindEnum = pgEnum("timeline_kind", [
+	"ai",
+	"success",
+	"note",
+	"info",
+	"danger",
 ]);
 
 export const followupStatusEnum = pgEnum("followup_status", [
@@ -76,4 +87,42 @@ export const goalEnum = pgEnum("goal", [
 	"USE_AI_FOLLOWUPS",
 	"RUN_CADENCES",
 	"INSIGHTFUL_REPORTS",
+]);
+
+// Spec lead source values
+export const leadSourceEnum = pgEnum("lead_source", [
+	"99ACRES",
+	"MAGICBRICKS",
+	"HOUSING",
+	"JUSTDIAL",
+	"META_ADS",
+	"GOOGLE_ADS",
+	"REFERRAL",
+	"WALK_IN",
+	"LINKEDIN",
+	"WEBSITE",
+	"OTHER",
+]);
+
+export const messageDirectionEnum = pgEnum("message_direction", [
+	"them",
+	"you",
+	"ai",
+]);
+
+export const callerTypeEnum = pgEnum("caller_type", ["agent", "ai"]);
+
+export const callOutcomeEnum = pgEnum("call_outcome", [
+	"connected",
+	"missed",
+	"voicemail",
+]);
+
+export const paymentMethodEnum = pgEnum("payment_method", [
+	"UPI",
+	"CARD",
+	"BANK_TRANSFER",
+	"CASH",
+	"CHEQUE",
+	"OTHER",
 ]);

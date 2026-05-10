@@ -5,7 +5,13 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "../src/db/schema";
 
-const { users, leads, pipelines, pipelineStages } = schema;
+const {
+	users,
+	leads,
+	pipelines,
+	pipelineStages,
+	leadReminders,
+} = schema;
 
 // Shared DB client for fixtures — lazy, won't connect until first query
 const databaseUrl = process.env.DATABASE_URL;
@@ -17,6 +23,21 @@ export const testDb = drizzle(client, { schema });
 // Re-export app for supertest — import.meta.main guard prevents listen()
 export { default as app } from "../src/index";
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export type LeadStatus =
+	| "fresh"
+	| "contacted"
+	| "interested"
+	| "appointment"
+	| "demo"
+	| "negotiation"
+	| "won"
+	| "lost"
+	| "not_interested";
+
+export type Role = "ADMIN" | "MANAGER" | "SALES" | "SUPPORT";
+
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
 export async function createUser(
@@ -24,14 +45,16 @@ export async function createUser(
 		name: string;
 		email: string;
 		password: string;
-		role: "ADMIN" | "MANAGER" | "SALES" | "SUPPORT";
+		role: Role;
 	}> = {},
 ) {
 	const [user] = await testDb
 		.insert(users)
 		.values({
 			name: overrides.name ?? "Test User",
-			email: overrides.email ?? `user-${Date.now()}@test.local`,
+			email:
+				overrides.email ??
+				`user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.local`,
 			passwordHash: await bcrypt.hash(overrides.password ?? "password123", 10),
 			role: overrides.role ?? "SALES",
 		})
@@ -60,32 +83,70 @@ export async function createPipeline(name = "Test Pipeline") {
 export async function createLead(
 	overrides: Partial<{
 		firstName: string;
+		lastName: string;
 		email: string;
+		phone: string;
+		source: string;
+		status: LeadStatus;
+		city: string;
+		budget: string;
+		requirement: string;
+		hot: boolean;
+		score: number;
 		assignedUserId: string;
 		pipelineId: string;
 		stageId: string;
-		status: "NEW" | "CONTACTED" | "QUALIFIED" | "WON" | "LOST";
+		lastContactedAt: Date | null;
 	}> = {},
 ) {
+	const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 	const [lead] = await testDb
 		.insert(leads)
 		.values({
 			firstName: overrides.firstName ?? "Test",
-			email: overrides.email ?? `lead-${Date.now()}@test.local`,
+			lastName: overrides.lastName,
+			email: overrides.email ?? `lead-${suffix}@test.local`,
+			phone: overrides.phone ?? `+91-9${suffix.slice(0, 9).replace(/\D/g, "0")}`,
+			source: overrides.source ?? "WEBSITE",
+			status: overrides.status ?? "fresh",
+			city: overrides.city,
+			budget: overrides.budget,
+			requirement: overrides.requirement,
+			hot: overrides.hot ?? false,
+			score: overrides.score ?? 0,
 			assignedUserId: overrides.assignedUserId,
 			pipelineId: overrides.pipelineId,
 			stageId: overrides.stageId,
-			status: overrides.status ?? "NEW",
+			lastContactedAt: overrides.lastContactedAt,
 		})
 		.returning();
 	if (!lead) throw new Error("createLead: DB insert returned no rows");
 	return lead;
 }
 
+export async function createReminder(
+	leadId: string,
+	dueAt: Date,
+	overrides: Partial<{ title: string; userId: string }> = {},
+) {
+	const [row] = await testDb
+		.insert(leadReminders)
+		.values({
+			leadId,
+			userId: overrides.userId,
+			title: overrides.title ?? "Follow up",
+			dueAt,
+		})
+		.returning();
+	if (!row) throw new Error("createReminder: DB insert returned no rows");
+	return row;
+}
+
 // Wipes all tables in dependency-safe order. Call in beforeAll/afterAll.
 export async function truncateAll() {
 	await testDb.execute(
 		`TRUNCATE TABLE
+      lead_reminders, lead_payments, lead_documents, lead_calls, lead_messages,
       lead_tags, lead_notes, lead_activities, ai_lead_summaries,
       followups, lead_imports, webhook_events, password_reset_tokens,
       email_otps, leads, pipeline_stages, pipelines, tags,

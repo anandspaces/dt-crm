@@ -3,11 +3,16 @@ import { leadActivities, leadNotes } from "./schema/activities";
 import { aiLeadSummaries } from "./schema/ai";
 import { passwordResetTokens } from "./schema/auth";
 import { automationRules } from "./schema/automation";
+import { leadCalls } from "./schema/calls";
+import { leadDocuments } from "./schema/documents";
 import { followups } from "./schema/followups";
 import { leadImports } from "./schema/imports";
 import { integrations } from "./schema/integrations";
 import { leads } from "./schema/leads";
+import { leadMessages } from "./schema/messages";
+import { leadPayments } from "./schema/payments";
 import { pipelineStages, pipelines } from "./schema/pipelines";
+import { leadReminders } from "./schema/reminders";
 import { leadTags, tags } from "./schema/tags";
 import { users } from "./schema/users";
 
@@ -64,6 +69,11 @@ export const leadsRelations = relations(leads, ({ one, many }) => ({
 	imports: many(leadImports),
 	tags: many(leadTags),
 	aiSummaries: many(aiLeadSummaries),
+	messages: many(leadMessages),
+	calls: many(leadCalls),
+	documents: many(leadDocuments),
+	payments: many(leadPayments),
+	reminders: many(leadReminders),
 }));
 
 export const leadActivitiesRelations = relations(leadActivities, ({ one }) => ({
@@ -120,5 +130,35 @@ export const aiLeadSummariesRelations = relations(
 		}),
 	}),
 );
+
+export const leadMessagesRelations = relations(leadMessages, ({ one }) => ({
+	lead: one(leads, { fields: [leadMessages.leadId], references: [leads.id] }),
+	user: one(users, { fields: [leadMessages.userId], references: [users.id] }),
+}));
+
+export const leadCallsRelations = relations(leadCalls, ({ one }) => ({
+	lead: one(leads, { fields: [leadCalls.leadId], references: [leads.id] }),
+	user: one(users, { fields: [leadCalls.userId], references: [users.id] }),
+}));
+
+export const leadDocumentsRelations = relations(leadDocuments, ({ one }) => ({
+	lead: one(leads, { fields: [leadDocuments.leadId], references: [leads.id] }),
+	uploader: one(users, {
+		fields: [leadDocuments.uploadedBy],
+		references: [users.id],
+	}),
+}));
+
+export const leadPaymentsRelations = relations(leadPayments, ({ one }) => ({
+	lead: one(leads, { fields: [leadPayments.leadId], references: [leads.id] }),
+}));
+
+export const leadRemindersRelations = relations(leadReminders, ({ one }) => ({
+	lead: one(leads, { fields: [leadReminders.leadId], references: [leads.id] }),
+	user: one(users, {
+		fields: [leadReminders.userId],
+		references: [users.id],
+	}),
+}));
 
 export const automationRulesRelations = relations(automationRules, () => ({}));

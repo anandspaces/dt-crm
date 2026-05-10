@@ -31,10 +31,10 @@ export const api = {
 	get: (path: string, token?: string) =>
 		request(app).get(path).set(bearer(token)),
 
-	post: (path: string, body: unknown, token?: string) =>
+	post: (path: string, body: object | string, token?: string) =>
 		request(app).post(path).set(bearer(token)).send(body),
 
-	patch: (path: string, body: unknown, token?: string) =>
+	patch: (path: string, body: object | string, token?: string) =>
 		request(app).patch(path).set(bearer(token)).send(body),
 
 	delete: (path: string, token?: string) =>
@@ -46,6 +46,21 @@ export const api = {
 			.post(path)
 			.set({ "content-type": "application/octet-stream", ...headers })
 			.send(body),
+
+	// Multipart upload — for /documents/upload and /leads/import.
+	postFile: (
+		path: string,
+		field: string,
+		filename: string,
+		content: Buffer | string,
+		mimeType: string,
+		token?: string,
+		extra: Record<string, string> = {},
+	) => {
+		const req = request(app).post(path).set(bearer(token));
+		for (const [k, v] of Object.entries(extra)) req.field(k, v);
+		return req.attach(field, Buffer.from(content), { filename, contentType: mimeType });
+	},
 };
 
 // ── HMAC signers ──────────────────────────────────────────────────────────────
@@ -55,4 +70,22 @@ export function googleSignature(
 	secret = process.env.GOOGLE_ADS_WEBHOOK_SECRET ?? "",
 ): string {
 	return createHmac("sha256", secret).update(body).digest("hex");
+}
+
+// ── Assertion helpers ─────────────────────────────────────────────────────────
+
+export function expectEnvelope(body: unknown): asserts body is {
+	status: number;
+	message: string;
+	data: unknown;
+} {
+	if (
+		!body ||
+		typeof body !== "object" ||
+		!("status" in body) ||
+		!("message" in body) ||
+		!("data" in body)
+	) {
+		throw new Error(`Response is not an API envelope: ${JSON.stringify(body)}`);
+	}
 }

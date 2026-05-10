@@ -1,4 +1,6 @@
+import { sql } from "drizzle-orm";
 import {
+	boolean,
 	index,
 	integer,
 	jsonb,
@@ -25,9 +27,18 @@ export const leads = pgTable(
 		website: varchar("website", { length: 500 }),
 		source: varchar("source", { length: 100 }),
 		sourceProvider: varchar("source_provider", { length: 100 }),
-		status: leadStatusEnum("status").notNull().default("NEW"),
+		status: leadStatusEnum("status").notNull().default("fresh"),
 		priority: leadPriorityEnum("priority").notNull().default("MEDIUM"),
-		score: integer("score"),
+		score: integer("score").notNull().default(0),
+		hot: boolean("hot").notNull().default(false),
+		aiEnriched: boolean("ai_enriched").notNull().default(false),
+		city: varchar("city", { length: 255 }),
+		budget: varchar("budget", { length: 100 }),
+		requirement: varchar("requirement", { length: 255 }),
+		tags: text("tags")
+			.array()
+			.notNull()
+			.default(sql`'{}'::text[]`),
 		assignedUserId: uuid("assigned_user_id").references(() => users.id, {
 			onDelete: "set null",
 		}),
@@ -41,6 +52,7 @@ export const leads = pgTable(
 		metadataJson: jsonb("metadata_json"),
 		lastContactedAt: timestamp("last_contacted_at", { withTimezone: true }),
 		nextFollowupAt: timestamp("next_followup_at", { withTimezone: true }),
+		nextReminderAt: timestamp("next_reminder_at", { withTimezone: true }),
 		deletedAt: timestamp("deleted_at", { withTimezone: true }),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.notNull()
@@ -59,6 +71,8 @@ export const leads = pgTable(
 		index("leads_stage_id_idx").on(t.stageId),
 		index("leads_deleted_at_idx").on(t.deletedAt),
 		index("leads_created_at_idx").on(t.createdAt),
+		index("leads_hot_idx").on(t.hot),
+		index("leads_next_reminder_at_idx").on(t.nextReminderAt),
 	],
 );
 
