@@ -52,3 +52,28 @@ export const integrationProviderEnum = pgEnum("integration_provider", [
 	"API",
 	"MANUAL",
 ]);
+
+export const industryEnum = pgEnum("industry", [
+	"REAL_ESTATE",
+	"SAAS",
+	"EDUCATION",
+	"FINANCIAL",
+	"HEALTHCARE",
+	"OTHER",
+]);
+
+export const teamSizeEnum = pgEnum("team_size", [
+	"SIZE_1_10",
+	"SIZE_11_50",
+	"SIZE_51_200",
+	"SIZE_200_PLUS",
+]);
+
+export const goalEnum = pgEnum("goal", [
+	"SPEED_UP_QUALIFICATION",
+	"CENTRALIZE_CALLS",
+	"FORECAST_BETTER",
+	"USE_AI_FOLLOWUPS",
+	"RUN_CADENCES",
+	"INSIGHTFUL_REPORTS",
+]);

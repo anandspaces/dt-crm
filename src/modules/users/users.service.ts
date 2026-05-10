@@ -38,12 +38,13 @@ export async function listUsers(query: ListUsersQuery, actor: JWTPayload) {
 		);
 	}
 
-	const [{ total }] = await db
+	const [countRow] = await db
 		.select({ total: sql<number>`count(*)::int` })
 		.from(users)
 		.where(
 			conditions.length > 0 ? and(...conditions.filter(Boolean)) : undefined,
 		);
+	const total = countRow?.total ?? 0;
 
 	const rows = await db
 		.select()

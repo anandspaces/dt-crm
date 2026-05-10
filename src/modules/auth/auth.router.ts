@@ -2,10 +2,12 @@ import { Router } from "express";
 import { otpLimiter } from "../../shared/middleware/rate-limit";
 import { validate } from "../../shared/middleware/validate.middleware";
 import { created, ok } from "../../shared/utils/response";
-import { optionalAuth } from "./auth.middleware";
+import { reqUser } from "../../shared/utils/route-param";
+import { authenticate, optionalAuth } from "./auth.middleware";
 import {
 	forgotPasswordSchema,
 	loginSchema,
+	onboardingSchema,
 	registerSchema,
 	resetPasswordSchema,
 	sendOtpSchema,
@@ -67,5 +69,15 @@ router.post("/verify-otp", validate(verifyOtpSchema), async (req, res) => {
 	const result = await authService.verifyOtp(req.body.email, req.body.otp);
 	ok(res, result);
 });
+
+router.post(
+	"/onboarding",
+	authenticate,
+	validate(onboardingSchema),
+	async (req, res) => {
+		const user = await authService.completeOnboarding(req.body, reqUser(req));
+		ok(res, user);
+	},
+);
 
 export default router;

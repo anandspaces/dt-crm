@@ -11,9 +11,14 @@ import { hashToken, signAccessToken } from "../../shared/utils/crypto";
 import {
 	ConflictError,
 	ForbiddenError,
+	NotFoundError,
 	UnauthorizedError,
 } from "../../shared/utils/errors";
-import type { LoginInput, RegisterInput } from "./auth.schema";
+import type {
+	LoginInput,
+	OnboardingInput,
+	RegisterInput,
+} from "./auth.schema";
 
 function safeUser(u: typeof users.$inferSelect) {
 	const { passwordHash: _, ...rest } = u;
@@ -256,4 +261,25 @@ export async function resetPassword(rawToken: string, newPassword: string) {
 		.update(passwordResetTokens)
 		.set({ usedAt: new Date() })
 		.where(eq(passwordResetTokens.id, resetToken.id));
+}
+
+export async function completeOnboarding(
+	input: OnboardingInput,
+	actor: JWTPayload,
+) {
+	const [updated] = await db
+		.update(users)
+		.set({
+			industry: input.industry,
+			teamSize: input.teamSize,
+			goals: input.goals,
+			isOnboarded: true,
+			onboardedAt: new Date(),
+			updatedAt: new Date(),
+		})
+		.where(eq(users.id, actor.sub))
+		.returning();
+
+	if (!updated) throw new NotFoundError("User not found");
+	return safeUser(updated);
 }
