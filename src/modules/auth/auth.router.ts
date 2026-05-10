@@ -20,8 +20,8 @@ router.post(
 	optionalAuth,
 	validate(registerSchema),
 	async (req, res) => {
-		const result = await authService.register(req.body, req.user);
-		created(res, result);
+		await authService.register(req.body, req.user);
+		created(res, { message: "Account created. Please verify your email." });
 	},
 );
 

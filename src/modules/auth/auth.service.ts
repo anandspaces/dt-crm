@@ -70,8 +70,6 @@ export async function register(
 		.returning();
 
 	if (!user) throw new Error("Failed to create user");
-
-	return { user: safeUser(user) };
 }
 
 export async function login(input: LoginInput) {

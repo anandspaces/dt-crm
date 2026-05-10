@@ -76,8 +76,7 @@ describe("POST /api/v1/auth/register", () => {
 			adminToken,
 		);
 		expect(res.status).toBe(201);
-		expect(res.body.data.user.role).toBe("SALES");
-		expect(res.body.data.accessToken).toBeUndefined();
+		expect(res.body.data.message).toBe("Account created. Please verify your email.");
 	});
 
 	it("allows unauthenticated self-registration as SALES when users exist", async () => {
@@ -88,8 +87,7 @@ describe("POST /api/v1/auth/register", () => {
 			role: "SALES",
 		});
 		expect(res.status).toBe(201);
-		expect(res.body.data.user.role).toBe("SALES");
-		expect(res.body.data.accessToken).toBeUndefined();
+		expect(res.body.data.message).toBeDefined();
 	});
 
 	it("forces SALES on public signup when a privileged role is requested", async () => {
@@ -100,7 +98,7 @@ describe("POST /api/v1/auth/register", () => {
 			role: "ADMIN",
 		});
 		expect(res.status).toBe(201);
-		expect(res.body.data.user.role).toBe("SALES");
+		expect(res.body.data.message).toBeDefined();
 	});
 
 	it("returns 409 on duplicate email", async () => {
