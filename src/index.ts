@@ -33,6 +33,10 @@ import { UPLOADS_DIR } from "./shared/utils/storage";
 
 const app = express();
 
+if (env.TRUST_PROXY_HOPS !== undefined && env.TRUST_PROXY_HOPS > 0) {
+	app.set("trust proxy", env.TRUST_PROXY_HOPS);
+}
+
 // Security headers
 app.use(helmet());
 app.use(cors({ origin: "*", methods: "*", allowedHeaders: "*" }));

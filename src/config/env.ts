@@ -7,6 +7,9 @@ const envSchema = z.object({
 		.enum(["development", "production", "test"])
 		.default("development"),
 
+	/** How many reverse proxies sit in front of this app (e.g. 1 for nginx/Caddy). Enables Express `trust proxy` so `req.ip` and rate limiting respect `X-Forwarded-For`. Omit or 0 when the app is reached directly. */
+	TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(32).optional(),
+
 	JWT_ACCESS_SECRET: z.string().min(32),
 	JWT_ACCESS_EXPIRES: z.string().default("15m"),
 
