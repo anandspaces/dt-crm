@@ -12,10 +12,7 @@ router.get("/ai-insight", async (req, res) => {
 });
 
 router.post("/enrich", async (req, res) => {
-	const job = await triggerEnrichment(
-		mergedParam(req, "leadId"),
-		reqUser(req),
-	);
+	const job = await triggerEnrichment(mergedParam(req, "leadId"), reqUser(req));
 	ok(res, job, "Enrichment started");
 });
 

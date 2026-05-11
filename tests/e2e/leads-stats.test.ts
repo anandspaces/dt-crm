@@ -8,16 +8,40 @@ describe("GET /api/v1/leads/stats", () => {
 
 	beforeAll(async () => {
 		await truncateAll();
-		const admin = await createUser({ role: "ADMIN", email: "admin@stats.local" });
+		const admin = await createUser({
+			role: "ADMIN",
+			email: "admin@stats.local",
+		});
 		adminToken = makeToken("ADMIN", { sub: admin.id, email: admin.email });
-		const sales = await createUser({ role: "SALES", email: "sales@stats.local" });
+		const sales = await createUser({
+			role: "SALES",
+			email: "sales@stats.local",
+		});
 		salesToken = makeToken("SALES", { sub: sales.id, email: sales.email });
 
 		await Promise.all([
-			createLead({ assignedUserId: sales.id, status: "fresh", source: "MAGICBRICKS", hot: true }),
-			createLead({ assignedUserId: sales.id, status: "fresh", source: "MAGICBRICKS" }),
-			createLead({ assignedUserId: sales.id, status: "interested", source: "META_ADS", hot: true }),
-			createLead({ assignedUserId: sales.id, status: "won", source: "REFERRAL" }),
+			createLead({
+				assignedUserId: sales.id,
+				status: "fresh",
+				source: "MAGICBRICKS",
+				hot: true,
+			}),
+			createLead({
+				assignedUserId: sales.id,
+				status: "fresh",
+				source: "MAGICBRICKS",
+			}),
+			createLead({
+				assignedUserId: sales.id,
+				status: "interested",
+				source: "META_ADS",
+				hot: true,
+			}),
+			createLead({
+				assignedUserId: sales.id,
+				status: "won",
+				source: "REFERRAL",
+			}),
 		]);
 	});
 

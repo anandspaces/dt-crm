@@ -18,7 +18,10 @@ describe("logger.sanitize", () => {
 	});
 
 	it("redacts case-insensitively (Password, ACCESSTOKEN, etc.)", () => {
-		const out = sanitize({ Password: "x", ACCESSTOKEN: "y" }) as Record<string, unknown>;
+		const out = sanitize({ Password: "x", ACCESSTOKEN: "y" }) as Record<
+			string,
+			unknown
+		>;
 		expect(out.Password).toBe("[REDACTED]");
 		expect(out.ACCESSTOKEN).toBe("[REDACTED]");
 	});

@@ -11,14 +11,18 @@ import {
 
 const router = Router({ mergeParams: true });
 
-router.get("/", validate(listMessagesQuerySchema, "query"), async (req, res) => {
-	const result = await listMessages(
-		mergedParam(req, "leadId"),
-		req.query as never,
-		reqUser(req),
-	);
-	ok(res, result);
-});
+router.get(
+	"/",
+	validate(listMessagesQuerySchema, "query"),
+	async (req, res) => {
+		const result = await listMessages(
+			mergedParam(req, "leadId"),
+			req.query as never,
+			reqUser(req),
+		);
+		ok(res, result);
+	},
+);
 
 router.post("/", validate(sendMessageSchema), async (req, res) => {
 	const message = await sendMessage(

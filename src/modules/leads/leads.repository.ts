@@ -16,10 +16,7 @@ import { leadReminders, leads } from "../../db/schema";
 import type { JWTPayload } from "../../shared/types/auth";
 import type { ListLeadsQuery } from "./leads.schema";
 
-function buildBaseConditions(
-	query: ListLeadsQuery,
-	actor: JWTPayload,
-): SQL[] {
+function buildBaseConditions(query: ListLeadsQuery, actor: JWTPayload): SQL[] {
 	const conds: SQL[] = [isNull(leads.deletedAt)];
 
 	if (actor.role === "SALES" || actor.role === "SUPPORT") {
@@ -52,7 +49,8 @@ function buildBaseConditions(
 		if (clause) conds.push(clause);
 	}
 
-	if (query.dateFrom) conds.push(gte(leads.createdAt, new Date(query.dateFrom)));
+	if (query.dateFrom)
+		conds.push(gte(leads.createdAt, new Date(query.dateFrom)));
 	if (query.dateTo) {
 		// end-of-day if a bare date string was passed
 		const to = new Date(query.dateTo);

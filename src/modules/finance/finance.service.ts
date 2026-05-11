@@ -53,7 +53,9 @@ export async function getFinance(leadId: string, actor: JWTPayload) {
 	const lead = await assertLeadAccess(leadId, actor);
 
 	const [recvRow] = await db
-		.select({ received: sql<number>`COALESCE(SUM(${leadPayments.amount}), 0)::int` })
+		.select({
+			received: sql<number>`COALESCE(SUM(${leadPayments.amount}), 0)::int`,
+		})
 		.from(leadPayments)
 		.where(eq(leadPayments.leadId, leadId));
 	const received = recvRow?.received ?? 0;
@@ -113,10 +115,7 @@ export async function addPayment(
 	});
 
 	if (input.autoReminderEnabled && nextReminderAt) {
-		await db
-			.update(leads)
-			.set({ nextReminderAt })
-			.where(eq(leads.id, leadId));
+		await db.update(leads).set({ nextReminderAt }).where(eq(leads.id, leadId));
 	}
 
 	return shapePayment(row);

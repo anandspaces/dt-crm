@@ -6,8 +6,11 @@ import helmet from "helmet";
 import { verifyDatabaseConnection } from "./config/db";
 import { env } from "./config/env";
 
+import accountsRouter from "./modules/accounts/accounts.router";
 import { authenticate } from "./modules/auth/auth.middleware";
 import authRouter from "./modules/auth/auth.router";
+import contactsRouter from "./modules/contacts/contacts.router";
+import dealsRouter from "./modules/deals/deals.router";
 import followupsGlobalRouter from "./modules/followups/followups-global.router";
 import importsRouter from "./modules/imports/imports.router";
 import leadsRouter from "./modules/leads/leads.router";
@@ -62,6 +65,9 @@ app.use("/api/v1/users", authenticate, usersRouter);
 // Imports router mounted under /leads BEFORE leadsRouter so /leads/import wins.
 app.use("/api/v1/leads", authenticate, importsRouter);
 app.use("/api/v1/leads", authenticate, leadsRouter);
+app.use("/api/v1/contacts", authenticate, contactsRouter);
+app.use("/api/v1/accounts", authenticate, accountsRouter);
+app.use("/api/v1/deals", authenticate, dealsRouter);
 app.use("/api/v1/pipelines", authenticate, pipelinesRouter);
 app.use("/api/v1/followups", authenticate, followupsGlobalRouter);
 

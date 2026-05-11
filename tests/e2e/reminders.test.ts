@@ -40,7 +40,10 @@ describe("Reminders API", () => {
 		});
 
 		it("lists reminders sorted by dueAt", async () => {
-			const res = await api.get(`/api/v1/leads/${leadId}/reminders`, salesToken);
+			const res = await api.get(
+				`/api/v1/leads/${leadId}/reminders`,
+				salesToken,
+			);
 			expect(res.status).toBe(200);
 			expect(Array.isArray(res.body.data.reminders)).toBe(true);
 		});
@@ -93,7 +96,9 @@ describe("Reminders API", () => {
 		it("?group=urgent filters to leads with overdue reminders", async () => {
 			const res = await api.get("/api/v1/leads?group=urgent", salesToken);
 			expect(res.status).toBe(200);
-			expect(res.body.data.leads.find((l: { id: string }) => l.id === leadId)).toBeDefined();
+			expect(
+				res.body.data.leads.find((l: { id: string }) => l.id === leadId),
+			).toBeDefined();
 		});
 	});
 });

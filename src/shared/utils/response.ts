@@ -35,11 +35,9 @@ export function fail(
 	message: string,
 	data?: unknown,
 ): void {
-	res
-		.status(httpStatus)
-		.json({
-			status: envelopeStatus.error,
-			message,
-			data: data ?? null,
-		});
+	res.status(httpStatus).json({
+		status: envelopeStatus.error,
+		message,
+		data: data ?? null,
+	});
 }

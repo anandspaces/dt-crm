@@ -35,10 +35,7 @@ export const leads = pgTable(
 		city: varchar("city", { length: 255 }),
 		budget: varchar("budget", { length: 100 }),
 		requirement: varchar("requirement", { length: 255 }),
-		tags: text("tags")
-			.array()
-			.notNull()
-			.default(sql`'{}'::text[]`),
+		tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
 		assignedUserId: uuid("assigned_user_id").references(() => users.id, {
 			onDelete: "set null",
 		}),

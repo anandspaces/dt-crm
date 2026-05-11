@@ -126,3 +126,30 @@ export const paymentMethodEnum = pgEnum("payment_method", [
 	"CHEQUE",
 	"OTHER",
 ]);
+
+// ─── Accounts / Contacts / Deals enums ──────────────────────────────────────
+
+export const accountTierEnum = pgEnum("account_tier", [
+	"Strategic",
+	"Enterprise",
+	"Mid-Market",
+	"SMB",
+]);
+
+export const accountTypeEnum = pgEnum("account_type", [
+	"Customer",
+	"Prospect",
+	"Partner",
+	"Vendor",
+	"Other",
+]);
+
+// Lowercased machine keys for stages; UI label mapping happens in Flutter.
+export const dealStageEnum = pgEnum("deal_stage", [
+	"prospecting",
+	"qualification",
+	"proposal",
+	"negotiation",
+	"closed_won",
+	"closed_lost",
+]);

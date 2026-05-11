@@ -10,11 +10,17 @@ describe("Documents API", () => {
 
 	beforeAll(async () => {
 		await truncateAll();
-		const sales = await createUser({ role: "SALES", email: "sales@docs.local" });
+		const sales = await createUser({
+			role: "SALES",
+			email: "sales@docs.local",
+		});
 		salesId = sales.id;
 		salesToken = makeToken("SALES", { sub: sales.id, email: sales.email });
 
-		const other = await createUser({ role: "SALES", email: "other@docs.local" });
+		const other = await createUser({
+			role: "SALES",
+			email: "other@docs.local",
+		});
 		otherSalesToken = makeToken("SALES", { sub: other.id, email: other.email });
 
 		const lead = await createLead({ assignedUserId: salesId });
@@ -78,7 +84,10 @@ describe("Documents API", () => {
 
 	describe("GET /documents", () => {
 		it("lists all documents for the lead", async () => {
-			const res = await api.get(`/api/v1/leads/${leadId}/documents`, salesToken);
+			const res = await api.get(
+				`/api/v1/leads/${leadId}/documents`,
+				salesToken,
+			);
 			expect(res.status).toBe(200);
 			expect(Array.isArray(res.body.data.documents)).toBe(true);
 			expect(res.body.data.documents.length).toBeGreaterThanOrEqual(2);

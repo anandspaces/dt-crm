@@ -270,20 +270,30 @@ describe("bulk schemas", () => {
 	const id = "11111111-1111-4111-8111-111111111111";
 
 	it("bulkTransfer requires ids and assignedTo", () => {
-		expect(bulkTransferSchema.safeParse({ ids: [id], assignedTo: id }).success).toBe(true);
-		expect(bulkTransferSchema.safeParse({ ids: [], assignedTo: id }).success).toBe(false);
+		expect(
+			bulkTransferSchema.safeParse({ ids: [id], assignedTo: id }).success,
+		).toBe(true);
+		expect(
+			bulkTransferSchema.safeParse({ ids: [], assignedTo: id }).success,
+		).toBe(false);
 		expect(bulkTransferSchema.safeParse({ ids: [id] }).success).toBe(false);
 	});
 
 	it("bulkStatus accepts spec status enum only", () => {
-		expect(bulkStatusSchema.safeParse({ ids: [id], status: "won" }).success).toBe(true);
-		expect(bulkStatusSchema.safeParse({ ids: [id], status: "WON" }).success).toBe(false);
+		expect(
+			bulkStatusSchema.safeParse({ ids: [id], status: "won" }).success,
+		).toBe(true);
+		expect(
+			bulkStatusSchema.safeParse({ ids: [id], status: "WON" }).success,
+		).toBe(false);
 	});
 
 	it("bulkWhatsapp requires non-empty message", () => {
 		expect(
 			bulkWhatsappSchema.safeParse({ ids: [id], message: "Hi {name}" }).success,
 		).toBe(true);
-		expect(bulkWhatsappSchema.safeParse({ ids: [id], message: "" }).success).toBe(false);
+		expect(
+			bulkWhatsappSchema.safeParse({ ids: [id], message: "" }).success,
+		).toBe(false);
 	});
 });

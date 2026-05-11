@@ -11,15 +11,24 @@ describe("Users API", () => {
 
 	beforeAll(async () => {
 		await truncateAll();
-		const admin = await createUser({ role: "ADMIN", email: "admin@users.local" });
+		const admin = await createUser({
+			role: "ADMIN",
+			email: "admin@users.local",
+		});
 		adminId = admin.id;
 		adminToken = makeToken("ADMIN", { sub: admin.id, email: admin.email });
 
-		const sales = await createUser({ role: "SALES", email: "sales@users.local" });
+		const sales = await createUser({
+			role: "SALES",
+			email: "sales@users.local",
+		});
 		salesId = sales.id;
 		salesToken = makeToken("SALES", { sub: sales.id, email: sales.email });
 
-		const other = await createUser({ role: "SALES", email: "other-user@users.local" });
+		const other = await createUser({
+			role: "SALES",
+			email: "other-user@users.local",
+		});
 		otherSalesId = other.id;
 	});
 

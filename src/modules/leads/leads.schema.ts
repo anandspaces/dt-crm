@@ -87,9 +87,7 @@ export const listLeadsQuerySchema = z.object({
 	stageId: z.uuid().optional(),
 	city: z.string().optional(),
 	search: z.string().optional(),
-	dateFrom: z
-		.union([z.iso.date(), z.iso.datetime()])
-		.optional(),
+	dateFrom: z.union([z.iso.date(), z.iso.datetime()]).optional(),
 	dateTo: z.union([z.iso.date(), z.iso.datetime()]).optional(),
 	sortBy: z
 		.enum(["createdAt", "updatedAt", "score", "name", "lastContactedAt"])

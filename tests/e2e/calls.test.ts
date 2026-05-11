@@ -11,7 +11,10 @@ describe("Calls API", () => {
 
 	beforeAll(async () => {
 		await truncateAll();
-		const sales = await createUser({ role: "SALES", email: "sales@calls.local" });
+		const sales = await createUser({
+			role: "SALES",
+			email: "sales@calls.local",
+		});
 		salesId = sales.id;
 		salesToken = makeToken("SALES", { sub: sales.id, email: sales.email });
 		const lead = await createLead({ assignedUserId: salesId });

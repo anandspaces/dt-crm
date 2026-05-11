@@ -59,7 +59,10 @@ export function shapeLead(
 	};
 }
 
-export function splitName(name: string): { firstName: string; lastName?: string } {
+export function splitName(name: string): {
+	firstName: string;
+	lastName?: string;
+} {
 	const trimmed = name.trim();
 	const idx = trimmed.indexOf(" ");
 	if (idx === -1) return { firstName: trimmed };

@@ -57,7 +57,10 @@ describe("Activities API", () => {
 
 	describe("GET /activities", () => {
 		it("returns items + nextCursor with author projection", async () => {
-			const res = await api.get(`/api/v1/leads/${leadId}/activities`, salesToken);
+			const res = await api.get(
+				`/api/v1/leads/${leadId}/activities`,
+				salesToken,
+			);
 			expect(res.status).toBe(200);
 			expect(Array.isArray(res.body.data.items)).toBe(true);
 			expect(res.body.data).toHaveProperty("nextCursor");

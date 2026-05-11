@@ -3,8 +3,8 @@ import { validate } from "../../shared/middleware/validate.middleware";
 import { created, ok } from "../../shared/utils/response";
 import { mergedParam, reqUser } from "../../shared/utils/route-param";
 import {
-	addTimelineNote,
 	addNoteSchema,
+	addTimelineNote,
 	getTimeline,
 } from "./timeline.service";
 

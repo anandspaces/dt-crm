@@ -39,12 +39,7 @@ export const onboardingSchema = z.object({
 		"HEALTHCARE",
 		"OTHER",
 	]),
-	teamSize: z.enum([
-		"SIZE_1_10",
-		"SIZE_11_50",
-		"SIZE_51_200",
-		"SIZE_200_PLUS",
-	]),
+	teamSize: z.enum(["SIZE_1_10", "SIZE_11_50", "SIZE_51_200", "SIZE_200_PLUS"]),
 	goals: z
 		.array(
 			z.enum([

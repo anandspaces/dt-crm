@@ -35,7 +35,11 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 	return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-function formatText(level: Level, msg: string, meta?: Record<string, unknown>): string {
+function formatText(
+	level: Level,
+	msg: string,
+	meta?: Record<string, unknown>,
+): string {
 	const prefix = `${ts()} [${level.toUpperCase()}] ${msg}`;
 	if (!meta || Object.keys(meta).length === 0) return prefix;
 	const parts: string[] = [];
@@ -71,7 +75,11 @@ function emit(level: Level, args: unknown[]): void {
 	}
 
 	const line = formatText(level, msg, meta);
-	(level === "error" ? console.error : level === "warn" ? console.warn : console.log)(line);
+	(level === "error"
+		? console.error
+		: level === "warn"
+			? console.warn
+			: console.log)(line);
 }
 
 export const logger = {
@@ -102,7 +110,10 @@ const REDACTED = "[REDACTED]";
  * Deep-clones a value, replacing values at sensitive keys with [REDACTED].
  * Safe on cycles (returns "[Circular]") and arrays. Used before any body is logged.
  */
-export function sanitize(value: unknown, seen = new WeakSet<object>()): unknown {
+export function sanitize(
+	value: unknown,
+	seen = new WeakSet<object>(),
+): unknown {
 	if (value === null || typeof value !== "object") return value;
 	if (seen.has(value as object)) return "[Circular]";
 	seen.add(value as object);

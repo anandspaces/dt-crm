@@ -9,7 +9,10 @@ describe("Timeline API", () => {
 
 	beforeAll(async () => {
 		await truncateAll();
-		const sales = await createUser({ role: "SALES", email: "sales@timeline.local" });
+		const sales = await createUser({
+			role: "SALES",
+			email: "sales@timeline.local",
+		});
 		salesId = sales.id;
 		salesToken = makeToken("SALES", { sub: sales.id, email: sales.email });
 		const lead = await createLead({ assignedUserId: salesId });
@@ -68,12 +71,17 @@ describe("Timeline API", () => {
 			);
 			const res = await api.get(`/api/v1/leads/${leadId}/timeline`, salesToken);
 			const titles = res.body.data.items.map((i: { title: string }) => i.title);
-			expect(titles.some((t: string) => t.includes("Status changed to interested"))).toBe(true);
+			expect(
+				titles.some((t: string) => t.includes("Status changed to interested")),
+			).toBe(true);
 		});
 	});
 
 	it("returns 403 for SALES on a foreign lead", async () => {
-		const otherSales = await createUser({ role: "SALES", email: "stranger@timeline.local" });
+		const otherSales = await createUser({
+			role: "SALES",
+			email: "stranger@timeline.local",
+		});
 		const otherToken = makeToken("SALES", {
 			sub: otherSales.id,
 			email: otherSales.email,

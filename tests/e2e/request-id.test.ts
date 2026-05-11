@@ -7,7 +7,10 @@ describe("X-Request-ID header", () => {
 
 	beforeAll(async () => {
 		await truncateAll();
-		const admin = await createUser({ role: "ADMIN", email: "admin@reqid.local" });
+		const admin = await createUser({
+			role: "ADMIN",
+			email: "admin@reqid.local",
+		});
 		adminToken = makeToken("ADMIN", { sub: admin.id, email: admin.email });
 	});
 

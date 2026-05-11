@@ -76,7 +76,9 @@ describe("POST /api/v1/auth/register", () => {
 			adminToken,
 		);
 		expect(res.status).toBe(201);
-		expect(res.body.data.message).toBe("Account created. Please verify your email.");
+		expect(res.body.data.message).toBe(
+			"Account created. Please verify your email.",
+		);
 	});
 
 	it("allows unauthenticated self-registration as SALES when users exist", async () => {
@@ -113,7 +115,9 @@ describe("POST /api/v1/auth/register", () => {
 			adminToken,
 		);
 		expect(res.status).toBe(201);
-		expect(res.body.data.message).toBe("Email registered, pending verification");
+		expect(res.body.data.message).toBe(
+			"Email registered, pending verification",
+		);
 	});
 
 	it("returns 403 when a non-admin attempts registration after first user exists", async () => {

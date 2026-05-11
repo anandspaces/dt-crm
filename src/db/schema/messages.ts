@@ -23,9 +23,7 @@ export const leadMessages = pgTable(
 		direction: messageDirectionEnum("direction").notNull(),
 		text: text("text").notNull(),
 		isAi: boolean("is_ai").notNull().default(false),
-		sentAt: timestamp("sent_at", { withTimezone: true })
-			.notNull()
-			.defaultNow(),
+		sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.notNull()
 			.defaultNow(),

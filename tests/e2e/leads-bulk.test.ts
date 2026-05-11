@@ -13,10 +13,16 @@ describe("Leads bulk endpoints", () => {
 	beforeAll(async () => {
 		await truncateAll();
 
-		const admin = await createUser({ role: "ADMIN", email: "admin@bulk.local" });
+		const admin = await createUser({
+			role: "ADMIN",
+			email: "admin@bulk.local",
+		});
 		adminToken = makeToken("ADMIN", { sub: admin.id, email: admin.email });
 
-		const sales = await createUser({ role: "SALES", email: "sales@bulk.local" });
+		const sales = await createUser({
+			role: "SALES",
+			email: "sales@bulk.local",
+		});
 		salesId = sales.id;
 		salesToken = makeToken("SALES", { sub: sales.id, email: sales.email });
 
@@ -60,7 +66,10 @@ describe("Leads bulk endpoints", () => {
 					.from(leadActivities)
 					.where(eq(leadActivities.leadId, id));
 				expect(
-					acts.some((a) => a.type === "ASSIGNMENT" && a.title === "Lead bulk transferred"),
+					acts.some(
+						(a) =>
+							a.type === "ASSIGNMENT" && a.title === "Lead bulk transferred",
+					),
 				).toBe(true);
 			}
 		});
@@ -120,7 +129,9 @@ describe("Leads bulk endpoints", () => {
 				.from(leadMessages)
 				.where(eq(leadMessages.leadId, ananyaId));
 			expect(ananyaMessages.length).toBe(1);
-			expect(ananyaMessages[0]?.text).toBe("Hi Ananya, still interested in 3BHK in Noida?");
+			expect(ananyaMessages[0]?.text).toBe(
+				"Hi Ananya, still interested in 3BHK in Noida?",
+			);
 			expect(ananyaMessages[0]?.direction).toBe("you");
 		});
 	});

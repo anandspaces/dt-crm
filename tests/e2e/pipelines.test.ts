@@ -9,10 +9,16 @@ describe("Pipelines API", () => {
 
 	beforeAll(async () => {
 		await truncateAll();
-		const admin = await createUser({ role: "ADMIN", email: "admin@pipe.local" });
+		const admin = await createUser({
+			role: "ADMIN",
+			email: "admin@pipe.local",
+		});
 		adminToken = makeToken("ADMIN", { sub: admin.id, email: admin.email });
 
-		const sales = await createUser({ role: "SALES", email: "sales@pipe.local" });
+		const sales = await createUser({
+			role: "SALES",
+			email: "sales@pipe.local",
+		});
 		salesId = sales.id;
 		salesToken = makeToken("SALES", { sub: sales.id, email: sales.email });
 	});
@@ -54,9 +60,13 @@ describe("Pipelines API", () => {
 		it("lists pipelines with stages sorted by position", async () => {
 			const res = await api.get("/api/v1/pipelines", adminToken);
 			expect(res.status).toBe(200);
-			const sales = res.body.data.find((p: { name: string }) => p.name === "Sales Pipeline");
+			const sales = res.body.data.find(
+				(p: { name: string }) => p.name === "Sales Pipeline",
+			);
 			expect(sales).toBeDefined();
-			expect(sales.stages[0].position).toBeLessThanOrEqual(sales.stages[1].position);
+			expect(sales.stages[0].position).toBeLessThanOrEqual(
+				sales.stages[1].position,
+			);
 		});
 	});
 

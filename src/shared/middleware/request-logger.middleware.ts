@@ -39,7 +39,10 @@ function reqBodyForLog(req: Request): unknown {
 		return `<webhook raw, ${len ?? "?"} bytes>`;
 	}
 	if (isMultipart(req)) return "<multipart>";
-	if (!req.body || (typeof req.body === "object" && Object.keys(req.body).length === 0)) {
+	if (
+		!req.body ||
+		(typeof req.body === "object" && Object.keys(req.body).length === 0)
+	) {
 		return undefined;
 	}
 	return truncateForLog(sanitize(req.body), MAX_BODY_BYTES);

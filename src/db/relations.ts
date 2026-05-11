@@ -1,9 +1,12 @@
 import { relations } from "drizzle-orm";
+import { accountNotes, accounts } from "./schema/accounts";
 import { leadActivities, leadNotes } from "./schema/activities";
 import { aiLeadSummaries } from "./schema/ai";
 import { passwordResetTokens } from "./schema/auth";
 import { automationRules } from "./schema/automation";
 import { leadCalls } from "./schema/calls";
+import { contactNotes, contacts } from "./schema/contacts";
+import { dealNotes, dealStageHistory, deals } from "./schema/deals";
 import { leadDocuments } from "./schema/documents";
 import { followups } from "./schema/followups";
 import { leadImports } from "./schema/imports";
@@ -162,3 +165,86 @@ export const leadRemindersRelations = relations(leadReminders, ({ one }) => ({
 }));
 
 export const automationRulesRelations = relations(automationRules, () => ({}));
+
+// ─── Accounts / Contacts / Deals relations ───────────────────────────────────
+
+export const accountsRelations = relations(accounts, ({ one, many }) => ({
+	owner: one(users, {
+		fields: [accounts.ownerUserId],
+		references: [users.id],
+	}),
+	notes: many(accountNotes),
+	contacts: many(contacts),
+	deals: many(deals),
+}));
+
+export const accountNotesRelations = relations(accountNotes, ({ one }) => ({
+	account: one(accounts, {
+		fields: [accountNotes.accountId],
+		references: [accounts.id],
+	}),
+	user: one(users, {
+		fields: [accountNotes.userId],
+		references: [users.id],
+	}),
+}));
+
+export const contactsRelations = relations(contacts, ({ one, many }) => ({
+	owner: one(users, {
+		fields: [contacts.ownerUserId],
+		references: [users.id],
+	}),
+	account: one(accounts, {
+		fields: [contacts.accountId],
+		references: [accounts.id],
+	}),
+	notes: many(contactNotes),
+	deals: many(deals),
+}));
+
+export const contactNotesRelations = relations(contactNotes, ({ one }) => ({
+	contact: one(contacts, {
+		fields: [contactNotes.contactId],
+		references: [contacts.id],
+	}),
+	user: one(users, {
+		fields: [contactNotes.userId],
+		references: [users.id],
+	}),
+}));
+
+export const dealsRelations = relations(deals, ({ one, many }) => ({
+	owner: one(users, {
+		fields: [deals.ownerUserId],
+		references: [users.id],
+	}),
+	account: one(accounts, {
+		fields: [deals.accountId],
+		references: [accounts.id],
+	}),
+	contact: one(contacts, {
+		fields: [deals.contactId],
+		references: [contacts.id],
+	}),
+	notes: many(dealNotes),
+	stageHistory: many(dealStageHistory),
+}));
+
+export const dealNotesRelations = relations(dealNotes, ({ one }) => ({
+	deal: one(deals, { fields: [dealNotes.dealId], references: [deals.id] }),
+	user: one(users, { fields: [dealNotes.userId], references: [users.id] }),
+}));
+
+export const dealStageHistoryRelations = relations(
+	dealStageHistory,
+	({ one }) => ({
+		deal: one(deals, {
+			fields: [dealStageHistory.dealId],
+			references: [deals.id],
+		}),
+		changedBy: one(users, {
+			fields: [dealStageHistory.changedByUserId],
+			references: [users.id],
+		}),
+	}),
+);

@@ -7,12 +7,7 @@ import {
 	uuid,
 	varchar,
 } from "drizzle-orm/pg-core";
-import {
-	goalEnum,
-	industryEnum,
-	teamSizeEnum,
-	userRoleEnum,
-} from "./enums";
+import { goalEnum, industryEnum, teamSizeEnum, userRoleEnum } from "./enums";
 
 export const users = pgTable(
 	"users",
@@ -27,10 +22,7 @@ export const users = pgTable(
 		isOnboarded: boolean("is_onboarded").notNull().default(false),
 		industry: industryEnum("industry"),
 		teamSize: teamSizeEnum("team_size"),
-		goals: goalEnum("goals")
-			.array()
-			.notNull()
-			.default(sql`'{}'::goal[]`),
+		goals: goalEnum("goals").array().notNull().default(sql`'{}'::goal[]`),
 		onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
 		lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
 		createdAt: timestamp("created_at", { withTimezone: true })

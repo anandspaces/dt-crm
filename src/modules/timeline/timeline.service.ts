@@ -17,7 +17,13 @@ export const ACTIVITY_TYPES = [
 	"SYSTEM",
 ] as const;
 
-export const TIMELINE_KINDS = ["ai", "success", "note", "info", "danger"] as const;
+export const TIMELINE_KINDS = [
+	"ai",
+	"success",
+	"note",
+	"info",
+	"danger",
+] as const;
 
 export const addNoteSchema = z.object({
 	kind: z.enum(TIMELINE_KINDS).default("note"),
@@ -68,7 +74,10 @@ export async function getTimeline(leadId: string, actor: JWTPayload) {
 
 	return rows.map((row) => ({
 		id: row.id,
-		kind: activityKind(row.type, row.metadataJson as Record<string, unknown> | null),
+		kind: activityKind(
+			row.type,
+			row.metadataJson as Record<string, unknown> | null,
+		),
 		actor: row.user?.name ?? "System",
 		title: row.title,
 		body: row.description ?? null,

@@ -11,7 +11,10 @@ describe("Finance API", () => {
 
 	beforeAll(async () => {
 		await truncateAll();
-		const sales = await createUser({ role: "SALES", email: "sales@finance.local" });
+		const sales = await createUser({
+			role: "SALES",
+			email: "sales@finance.local",
+		});
 		salesId = sales.id;
 		salesToken = makeToken("SALES", { sub: sales.id, email: sales.email });
 

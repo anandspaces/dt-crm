@@ -35,7 +35,10 @@ router.get(
 	"/stats",
 	validate(listLeadsQuerySchema, "query"),
 	async (req, res) => {
-		const stats = await leadsService.leadStats(req.query as never, reqUser(req));
+		const stats = await leadsService.leadStats(
+			req.query as never,
+			reqUser(req),
+		);
 		ok(res, stats);
 	},
 );

@@ -47,7 +47,10 @@ describe("Followups API", () => {
 		});
 
 		it("lists followups for the lead", async () => {
-			const res = await api.get(`/api/v1/leads/${leadId}/followups`, salesToken);
+			const res = await api.get(
+				`/api/v1/leads/${leadId}/followups`,
+				salesToken,
+			);
 			expect(res.status).toBe(200);
 			expect(Array.isArray(res.body.data.items)).toBe(true);
 			expect(res.body.data).toHaveProperty("nextCursor");

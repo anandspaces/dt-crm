@@ -54,12 +54,20 @@ describe("splitName", () => {
 
 describe("shapeLead", () => {
 	it("computes name from firstName + lastName", () => {
-		const shaped = shapeLead({ ...baseLead, firstName: "Ananya", lastName: "Sharma" });
+		const shaped = shapeLead({
+			...baseLead,
+			firstName: "Ananya",
+			lastName: "Sharma",
+		});
 		expect(shaped.name).toBe("Ananya Sharma");
 	});
 
 	it("falls back to firstName-only when lastName is null", () => {
-		const shaped = shapeLead({ ...baseLead, firstName: "Cher", lastName: null });
+		const shaped = shapeLead({
+			...baseLead,
+			firstName: "Cher",
+			lastName: null,
+		});
 		expect(shaped.name).toBe("Cher");
 	});
 

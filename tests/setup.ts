@@ -5,13 +5,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "../src/db/schema";
 
-const {
-	users,
-	leads,
-	pipelines,
-	pipelineStages,
-	leadReminders,
-} = schema;
+const { users, leads, pipelines, pipelineStages, leadReminders } = schema;
 
 // Shared DB client for fixtures — lazy, won't connect until first query
 const databaseUrl = process.env.DATABASE_URL;
@@ -106,7 +100,8 @@ export async function createLead(
 			firstName: overrides.firstName ?? "Test",
 			lastName: overrides.lastName,
 			email: overrides.email ?? `lead-${suffix}@test.local`,
-			phone: overrides.phone ?? `+91-9${suffix.slice(0, 9).replace(/\D/g, "0")}`,
+			phone:
+				overrides.phone ?? `+91-9${suffix.slice(0, 9).replace(/\D/g, "0")}`,
 			source: overrides.source ?? "WEBSITE",
 			status: overrides.status ?? "fresh",
 			city: overrides.city,

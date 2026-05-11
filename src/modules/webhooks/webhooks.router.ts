@@ -60,7 +60,9 @@ router.post(
 			db.update(webhookEvents)
 				.set({ errorMessage: msg })
 				.where(eq(webhookEvents.id, event.id))
-				.catch((e) => logger.error("[webhook] Failed to update errorMessage:", e));
+				.catch((e) =>
+					logger.error("[webhook] Failed to update errorMessage:", e),
+				);
 		});
 	},
 );

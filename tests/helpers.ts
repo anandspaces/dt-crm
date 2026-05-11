@@ -59,7 +59,10 @@ export const api = {
 	) => {
 		const req = request(app).post(path).set(bearer(token));
 		for (const [k, v] of Object.entries(extra)) req.field(k, v);
-		return req.attach(field, Buffer.from(content), { filename, contentType: mimeType });
+		return req.attach(field, Buffer.from(content), {
+			filename,
+			contentType: mimeType,
+		});
 	},
 };
 

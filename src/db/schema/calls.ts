@@ -7,7 +7,7 @@ import {
 	uuid,
 	varchar,
 } from "drizzle-orm/pg-core";
-import { callOutcomeEnum, callerTypeEnum } from "./enums";
+import { callerTypeEnum, callOutcomeEnum } from "./enums";
 import { leads } from "./leads";
 import { users } from "./users";
 

@@ -1,5 +1,4 @@
 import { randomBytes, randomInt } from "node:crypto";
-import { logger } from "../../shared/utils/logger";
 import bcrypt from "bcryptjs";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import nodemailer from "nodemailer";
@@ -14,11 +13,8 @@ import {
 	NotFoundError,
 	UnauthorizedError,
 } from "../../shared/utils/errors";
-import type {
-	LoginInput,
-	OnboardingInput,
-	RegisterInput,
-} from "./auth.schema";
+import { logger } from "../../shared/utils/logger";
+import type { LoginInput, OnboardingInput, RegisterInput } from "./auth.schema";
 
 function safeUser(u: typeof users.$inferSelect) {
 	const { passwordHash: _, ...rest } = u;
