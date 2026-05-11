@@ -15,6 +15,9 @@ const envSchema = z.object({
 
 	CORS_ORIGIN: z.string().default("*"),
 
+	/** Shared key the Google Ads lead-form webhook embeds as `google_key` in
+	 * the payload. Must match the "Key" field configured in the Google Ads UI.
+	 * Leave unset in dev to accept all keys. */
 	GOOGLE_ADS_WEBHOOK_SECRET: z.string().optional(),
 
 	// Optional SMTP — if absent, password-reset emails are logged to console

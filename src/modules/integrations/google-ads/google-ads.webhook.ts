@@ -1,26 +1,27 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
 import { env } from "../../../config/env";
 import { logger } from "../../../shared/utils/logger";
 
-export function verifyGoogleSignature(
-	rawBody: Buffer,
-	signature: string,
-): boolean {
+/**
+ * Google Ads lead-form webhooks authenticate via a shared key embedded in the
+ * JSON body (`google_key`), not via an HMAC header signature. The value must
+ * match the "Key" configured in the Google Ads UI (and stored here as
+ * env.GOOGLE_ADS_WEBHOOK_SECRET).
+ */
+export function verifyGoogleKey(payload: Record<string, unknown>): boolean {
 	const secret = env.GOOGLE_ADS_WEBHOOK_SECRET;
 	if (!secret) {
 		logger.warn(
-			"[webhook] GOOGLE_ADS_WEBHOOK_SECRET not set — skipping signature check",
+			"[webhook] GOOGLE_ADS_WEBHOOK_SECRET not set — accepting all keys (dev only)",
 		);
 		return true;
 	}
 
-	try {
-		const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
-		const sigBuf = Buffer.from(signature);
-		const expBuf = Buffer.from(expected);
-		if (sigBuf.length !== expBuf.length) return false;
-		return timingSafeEqual(sigBuf, expBuf);
-	} catch {
-		return false;
-	}
+	const provided = payload.google_key;
+	if (typeof provided !== "string" || provided.length === 0) return false;
+
+	const a = Buffer.from(provided);
+	const b = Buffer.from(secret);
+	if (a.length !== b.length) return false;
+	return timingSafeEqual(a, b);
 }

@@ -1,4 +1,3 @@
-import { createHmac } from "node:crypto";
 import jwt from "jsonwebtoken";
 import request from "supertest";
 import type { UserRole } from "../src/shared/types/auth";
@@ -65,15 +64,6 @@ export const api = {
 		});
 	},
 };
-
-// ── HMAC signers ──────────────────────────────────────────────────────────────
-
-export function googleSignature(
-	body: string | Buffer,
-	secret = process.env.GOOGLE_ADS_WEBHOOK_SECRET ?? "",
-): string {
-	return createHmac("sha256", secret).update(body).digest("hex");
-}
 
 // ── Assertion helpers ─────────────────────────────────────────────────────────
 

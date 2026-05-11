@@ -15,16 +15,23 @@ export interface LeadInput {
 }
 
 interface ColumnData {
-	column_name: string;
+	column_id?: string;
+	column_name?: string;
 	string_value?: string;
 }
 
 interface GoogleAdsPayload {
 	lead_id?: string;
 	user_column_data?: ColumnData[];
+	campaign_id?: number | string;
 	campaign_name?: string;
-	ad_group_name?: string;
+	adgroup_id?: number | string;
+	adgroup_name?: string;
+	form_id?: number | string;
 	form_name?: string;
+	asset_id?: number | string;
+	asset_name?: string;
+	creative_id?: number | string;
 	gcl_id?: string;
 	is_test?: boolean;
 }
@@ -32,20 +39,26 @@ interface GoogleAdsPayload {
 export function mapGoogleAdsLead(raw: Record<string, unknown>): LeadInput {
 	const payload = raw as GoogleAdsPayload;
 
+	// Google Ads keys user data by stable `column_id` (FULL_NAME, EMAIL, …);
+	// `column_name` is the human-readable label set in the UI and varies per
+	// advertiser. Prefer column_id and fall back to column_name for resilience.
 	const fields: Record<string, string> = {};
 	for (const col of payload.user_column_data ?? []) {
-		if (col.string_value) {
-			fields[col.column_name] = col.string_value;
-		}
+		if (!col.string_value) continue;
+		const key = (col.column_id ?? col.column_name ?? "").toUpperCase();
+		if (key) fields[key] = col.string_value;
 	}
 
 	const fullName = (fields.FULL_NAME ?? "").trim();
-	const nameParts = fullName.split(/\s+/);
-	const firstName = nameParts[0] ?? "Unknown";
-	const lastName = nameParts.slice(1).join(" ") || undefined;
+	const nameParts = fullName.split(/\s+/).filter(Boolean);
+	const firstName =
+		fields.FIRST_NAME?.trim() || nameParts[0] || "Unknown";
+	const lastName =
+		fields.LAST_NAME?.trim() || nameParts.slice(1).join(" ") || undefined;
 
+	const formName = payload.asset_name ?? payload.form_name;
 	const source =
-		[payload.campaign_name, payload.form_name].filter(Boolean).join(" — ") ||
+		[payload.campaign_name, formName].filter(Boolean).join(" — ") ||
 		"Google Ads";
 
 	return {
@@ -60,9 +73,13 @@ export function mapGoogleAdsLead(raw: Record<string, unknown>): LeadInput {
 		sourceProvider: "GOOGLE_ADS",
 		isTest: payload.is_test === true,
 		metadataJson: {
+			campaignId: payload.campaign_id,
 			campaignName: payload.campaign_name,
-			adGroupName: payload.ad_group_name,
-			formName: payload.form_name,
+			adgroupId: payload.adgroup_id,
+			adgroupName: payload.adgroup_name,
+			formId: payload.form_id ?? payload.asset_id,
+			formName,
+			creativeId: payload.creative_id,
 			gclId: payload.gcl_id,
 			rawFields: fields,
 		},
