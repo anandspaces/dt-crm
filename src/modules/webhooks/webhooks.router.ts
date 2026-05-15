@@ -16,10 +16,10 @@ const router = Router();
 const jsonParser = express.json({ limit: "1mb" });
 
 // Google Ads lead-form webhook.
-// URL configured in the Google Ads UI: https://<host>/api/v1/webhooks
+// URL configured in the Google Ads UI: https://<host>/api/v1/webhooks/google
 // Auth: payload contains a `google_key` field whose value must match
 // env.GOOGLE_ADS_WEBHOOK_SECRET (the "Key" field in the Google Ads UI).
-router.post("/", jsonParser, async (req, res) => {
+router.post("/google", jsonParser, async (req, res) => {
 	const payload = req.body as Record<string, unknown> | undefined;
 
 	if (!payload || typeof payload !== "object") {
