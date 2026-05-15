@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../../config/db";
 import { leadActivities, leadCalls, leads, users } from "../../db/schema";
+import { analyzeCallTranscript } from "../../shared/services/gemini-text";
 import type { JWTPayload } from "../../shared/types/auth";
 import { assertLeadAccess } from "../leads/leads.service";
 
@@ -11,6 +12,16 @@ export const logCallSchema = z.object({
 	outcome: z.enum(["connected", "missed", "voicemail"]),
 	durationSeconds: z.number().int().min(0).default(0),
 	recordingUrl: z.url().optional(),
+	transcriptText: z.string().optional(),
+	transcriptJson: z
+		.array(
+			z.object({
+				role: z.enum(["user", "agent"]),
+				text: z.string(),
+				timestamp: z.string().optional(),
+			}),
+		)
+		.optional(),
 	calledAt: z.iso.datetime().optional(),
 });
 
@@ -29,6 +40,11 @@ function shapeCall(
 		calledAt: row.calledAt,
 		recordingUrl: row.recordingUrl ?? undefined,
 		aiSummary: row.aiSummaryJson ?? undefined,
+		transcriptJson: row.transcriptJson ?? undefined,
+		sentimentLabel: row.sentimentLabel ?? undefined,
+		sentimentScore: row.sentimentScore ?? undefined,
+		batchId: row.batchId ?? undefined,
+		vobizCallUuid: row.vobizCallUuid ?? undefined,
 	};
 }
 
@@ -57,15 +73,12 @@ export async function logCall(
 
 	const calledAt = input.calledAt ? new Date(input.calledAt) : new Date();
 
-	// Stub AI summary if recording is present
-	const aiSummary = input.recordingUrl
-		? {
-				sentiment: "neutral",
-				sentimentScore: 0.5,
-				keyPoints: ["Auto-summary not yet generated"],
-				actionItems: [],
-			}
-		: null;
+	// Run analysis only when a transcript is available. Recording-only calls
+	// stay un-analyzed — speech-to-text isn't part of this manual-log flow.
+	const analysis =
+		input.transcriptText && input.transcriptText.length > 0
+			? await analyzeCallTranscript(input.transcriptText, input.callerName)
+			: null;
 
 	const [row] = await db
 		.insert(leadCalls)
@@ -77,7 +90,10 @@ export async function logCall(
 			outcome: input.outcome,
 			durationSeconds: input.durationSeconds,
 			recordingUrl: input.recordingUrl,
-			aiSummaryJson: aiSummary,
+			aiSummaryJson: analysis ?? undefined,
+			transcriptJson: input.transcriptJson,
+			sentimentLabel: analysis?.sentimentLabel,
+			sentimentScore: analysis?.sentimentScore,
 			calledAt,
 		})
 		.returning();

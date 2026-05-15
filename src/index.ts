@@ -7,8 +7,10 @@ import { verifyDatabaseConnection } from "./config/db";
 import { env } from "./config/env";
 
 import accountsRouter from "./modules/accounts/accounts.router";
+import aiAgentsRouter from "./modules/ai-agents/ai-agents.router";
 import { authenticate } from "./modules/auth/auth.middleware";
 import authRouter from "./modules/auth/auth.router";
+import callBatchesRouter from "./modules/call-batches/call-batches.router";
 import contactsRouter from "./modules/contacts/contacts.router";
 import dealsRouter from "./modules/deals/deals.router";
 import followupsGlobalRouter from "./modules/followups/followups-global.router";
@@ -16,6 +18,13 @@ import importsRouter from "./modules/imports/imports.router";
 import leadsRouter from "./modules/leads/leads.router";
 import pipelinesRouter from "./modules/pipelines/pipelines.router";
 import usersRouter from "./modules/users/users.router";
+import vobizRouter from "./modules/vobiz/vobiz.router";
+import {
+	handleVoiceStreamClose,
+	handleVoiceStreamMessage,
+	handleVoiceStreamOpen,
+	type VoiceStreamData,
+} from "./modules/voice-stream/voice-stream.handler";
 import webhooksRouter from "./modules/webhooks/webhooks.router";
 
 import { errorMiddleware } from "./shared/middleware/error.middleware";
@@ -51,6 +60,11 @@ app.use(requestContext);
 // the response log (and a fallback request log) on finish.
 app.use("/api/v1/webhooks", webhookLimiter, webhooksRouter);
 
+// Vobiz telephony webhooks — public (Vobiz calls these). The router brings its
+// own express.json + urlencoded middleware so it must mount before the global
+// JSON parser to avoid double-parsing the body.
+app.use("/api/v1/vobiz", vobizRouter);
+
 // ─── JSON body parser for all other routes ───────────────────────────────────
 app.use(express.json({ limit: "10mb" }));
 
@@ -74,6 +88,8 @@ app.use("/api/v1/accounts", authenticate, accountsRouter);
 app.use("/api/v1/deals", authenticate, dealsRouter);
 app.use("/api/v1/pipelines", authenticate, pipelinesRouter);
 app.use("/api/v1/followups", authenticate, followupsGlobalRouter);
+app.use("/api/v1/ai-agents", authenticate, aiAgentsRouter);
+app.use("/api/v1/call-batches", authenticate, callBatchesRouter);
 
 // ─── Static uploads (lead documents) ──────────────────────────────────────────
 // Mirrors the URLs returned by the documents storage helper.
@@ -107,6 +123,62 @@ process.on("uncaughtException", (err) => {
 	process.exit(1);
 });
 
+function startVoiceStreamServer(): void {
+	// Bun's WebSocket server lives on a separate port from Express. Vobiz dials
+	// wss://{host}:{WS_PORT}/voice-stream?... — the URL is built in vobiz.service.
+	// Skipped silently if WS_PORT isn't configured (calling agent disabled).
+	if (!env.WS_PORT) {
+		logger.info("voice-stream disabled (WS_PORT not set)");
+		return;
+	}
+
+	// `Bun` is available globally under the Bun runtime. Guard for tooling that
+	// loads this file under plain Node (e.g. type-checkers).
+	const bun = (globalThis as { Bun?: typeof Bun }).Bun;
+	if (!bun) {
+		logger.warn("Bun runtime not detected — /voice-stream will not start");
+		return;
+	}
+
+	bun.serve<VoiceStreamData, never>({
+		port: env.WS_PORT,
+		fetch(req, server) {
+			const url = new URL(req.url);
+			if (url.pathname !== "/voice-stream") {
+				return new Response("Not found", { status: 404 });
+			}
+			const data: VoiceStreamData = {
+				batchId: url.searchParams.get("batchId") ?? "",
+				itemId: url.searchParams.get("itemId") ?? "",
+				userId: url.searchParams.get("userId") ?? "",
+				callUuid: url.searchParams.get("callUuid") ?? "",
+				streamId: "",
+				transcript: [],
+				liveSession: null,
+				closing: false,
+			};
+			if (!data.batchId || !data.itemId) {
+				return new Response("missing batchId/itemId", { status: 400 });
+			}
+			if (server.upgrade(req, { data })) return undefined;
+			return new Response("upgrade failed", { status: 400 });
+		},
+		websocket: {
+			open: (ws) => {
+				void handleVoiceStreamOpen(ws);
+			},
+			message: (ws, message) => {
+				handleVoiceStreamMessage(ws, message);
+			},
+			close: (ws) => {
+				void handleVoiceStreamClose(ws);
+			},
+		},
+	});
+
+	logger.info("voice-stream up", { port: env.WS_PORT });
+}
+
 async function start(): Promise<void> {
 	try {
 		await verifyDatabaseConnection();
@@ -124,6 +196,8 @@ async function start(): Promise<void> {
 			env: env.NODE_ENV,
 		});
 	});
+
+	startVoiceStreamServer();
 }
 
 if (import.meta.main) {

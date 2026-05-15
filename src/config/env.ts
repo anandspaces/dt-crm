@@ -31,6 +31,36 @@ const envSchema = z.object({
 
 	LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).optional(),
 	LOG_FORMAT: z.enum(["text", "json"]).default("text"),
+
+	// ─── Calling agent (Vobiz telephony + Gemini Live) ───────────────────────
+	/** Public HTTPS base for the API. Vobiz needs it for answer/hangup callbacks
+	 * and to build the wss:// stream URL. Use ngrok for local dev. */
+	PUBLIC_BASE_URL: z.string().optional(),
+	/** Separate port for the Bun WebSocket server that handles /voice-stream.
+	 * Express keeps PORT for HTTP; Bun.serve() takes this port for WS upgrades. */
+	WS_PORT: z.coerce.number().int().positive().optional(),
+	/** Where MP3 recordings and per-call artifacts are stored locally. */
+	ARTIFACTS_DIR: z.string().default("./call-artifacts"),
+
+	GEMINI_API_KEY: z.string().optional(),
+	GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
+	GEMINI_LIVE_MODEL: z
+		.string()
+		.default("gemini-2.5-flash-preview-native-audio-dialog"),
+	GEMINI_VOICE_NAME: z.string().default("Puck"),
+	GEMINI_EMBEDDING_MODEL: z.string().default("text-embedding-004"),
+
+	VOBIZ_AUTH_ID: z.string().optional(),
+	VOBIZ_AUTH_TOKEN: z.string().optional(),
+	VOBIZ_PHONE_NUMBER: z.string().optional(),
+	VOBIZ_RING_TIMEOUT: z.coerce.number().int().positive().default(30),
+	VOBIZ_TIME_LIMIT: z.coerce.number().int().positive().default(600),
+	VOBIZ_RECORDING_TIME_LIMIT: z.coerce.number().int().positive().default(900),
+	VOBIZ_RECORDING_FORMAT: z.string().default("mp3"),
+	VOBIZ_RECORDING_CHANNELS: z.string().default("stereo"),
+	VOBIZ_MACHINE_DETECTION: z
+		.preprocess((v) => (typeof v === "string" ? v === "true" : v), z.boolean())
+		.default(false),
 });
 
 export const env = envSchema.parse(process.env);
