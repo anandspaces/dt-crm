@@ -1,3 +1,5 @@
+import { appendFile, mkdir } from "node:fs/promises";
+import path from "node:path";
 import type { ServerWebSocket } from "bun";
 import { eq } from "drizzle-orm";
 import { db } from "../../config/db";
@@ -26,6 +28,29 @@ export interface VoiceStreamData {
 	transcript: TranscriptEntry[];
 	liveSession: GeminiLiveSession | null;
 	closing: boolean;
+	/** Local FS dir for transcript.txt + analysis.json artifacts. */
+	artifactDir: string;
+}
+
+function artifactDirFor(batchId: string, itemId: string): string {
+	return path.join(env.ARTIFACTS_DIR, batchId, itemId);
+}
+
+/** Append one transcript line to transcript.txt for offline debugging /
+ * post-hoc analysis (mirrors dextora_crm's appendTranscriptArtifact). */
+async function appendTranscriptLine(
+	artifactDir: string,
+	role: TranscriptRole,
+	text: string,
+): Promise<void> {
+	try {
+		const line = `[${new Date().toISOString()}] ${role}: ${text}\n`;
+		await appendFile(path.join(artifactDir, "transcript.txt"), line, "utf8");
+	} catch (err) {
+		logger.warn("[voice-stream] failed to append transcript line", {
+			error: err instanceof Error ? err.message : String(err),
+		});
+	}
 }
 
 const DEFAULT_SYSTEM_INSTRUCTION =
@@ -97,6 +122,22 @@ export async function handleVoiceStreamOpen(
 	const { batchId, itemId } = ws.data;
 	logger.info("[voice-stream] open", { batchId, itemId });
 
+	// Ensure the artifact dir exists up front; persist it on the queue item so
+	// recovery/analysis can find it later. Mirrors dextora_crm's ensureArtifactDir.
+	const dir = artifactDirFor(batchId, itemId);
+	try {
+		await mkdir(dir, { recursive: true });
+		ws.data.artifactDir = dir;
+		await db
+			.update(callQueueItems)
+			.set({ artifactDir: dir, updatedAt: new Date() })
+			.where(eq(callQueueItems.id, itemId));
+	} catch (err) {
+		logger.warn("[voice-stream] failed to ensure artifact dir", {
+			error: err instanceof Error ? err.message : String(err),
+		});
+	}
+
 	try {
 		const agentConfig = await loadAgentForBatch(batchId);
 		const ragContext = agentConfig.agentId
@@ -134,6 +175,10 @@ export async function handleVoiceStreamOpen(
 						text,
 						timestamp: new Date().toISOString(),
 					});
+					// Real-time append to transcript.txt (best-effort).
+					if (ws.data.artifactDir) {
+						void appendTranscriptLine(ws.data.artifactDir, role, text);
+					}
 					maybeFlush();
 				},
 				onAudioChunk: (mulaw: Buffer) => {

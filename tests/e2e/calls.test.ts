@@ -55,7 +55,7 @@ describe("Calls API", () => {
 			expect(row?.lastContactedAt).not.toBeNull();
 		});
 
-		it("attaches a stub aiSummary when recordingUrl is present", async () => {
+		it("does NOT attach aiSummary when only a recordingUrl is supplied (no transcript to analyze)", async () => {
 			const res = await api.post(
 				`/api/v1/leads/${leadId}/calls`,
 				{
@@ -66,9 +66,43 @@ describe("Calls API", () => {
 				salesToken,
 			);
 			expect(res.status).toBe(201);
+			expect(res.body.data.recordingUrl).toBe(
+				"https://files.example.com/recordings/x.mp3",
+			);
+			expect(res.body.data.aiSummary).toBeUndefined();
+		});
+
+		it("attaches a zero-analysis aiSummary when a transcript is supplied (no Gemini key in tests)", async () => {
+			const res = await api.post(
+				`/api/v1/leads/${leadId}/calls`,
+				{
+					outcome: "connected",
+					durationSeconds: 60,
+					recordingUrl: "https://files.example.com/recordings/y.mp3",
+					transcriptText: "agent: Hello.\nuser: Hi there.",
+					transcriptJson: [
+						{
+							role: "agent",
+							text: "Hello.",
+							timestamp: "2024-01-01T00:00:00Z",
+						},
+						{
+							role: "user",
+							text: "Hi there.",
+							timestamp: "2024-01-01T00:00:01Z",
+						},
+					],
+				},
+				salesToken,
+			);
+			expect(res.status).toBe(201);
 			expect(res.body.data.aiSummary).toBeDefined();
-			expect(res.body.data.aiSummary.sentiment).toBe("neutral");
-			expect(Array.isArray(res.body.data.aiSummary.keyPoints)).toBe(true);
+			// Without GEMINI_API_KEY the service returns its zero-analysis shape.
+			expect(res.body.data.aiSummary.sentimentLabel).toBe("neutral");
+			expect(res.body.data.aiSummary.sentimentScore).toBe(0);
+			expect(Array.isArray(res.body.data.transcriptJson)).toBe(true);
+			expect(res.body.data.transcriptJson.length).toBe(2);
+			expect(res.body.data.sentimentLabel).toBe("neutral");
 		});
 
 		it("missed call records 0s duration without bumping lastContactedAt", async () => {

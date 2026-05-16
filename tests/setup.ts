@@ -141,6 +141,7 @@ export async function createReminder(
 export async function truncateAll() {
 	await testDb.execute(
 		`TRUNCATE TABLE
+      call_queue_items, call_batches, rag_knowledge, ai_agents,
       lead_reminders, lead_payments, lead_documents, lead_calls, lead_messages,
       lead_tags, lead_notes, lead_activities, ai_lead_summaries,
       followups, lead_imports, webhook_events, password_reset_tokens,

@@ -96,8 +96,13 @@ interface HangupContext {
 }
 
 export async function handleVobizHangup(ctx: HangupContext): Promise<void> {
+	// Vobiz emits CallStatus values like "completed", "answered", "in-progress"
+	// for successful calls and "failed", "no-answer", "busy", "cancel" otherwise.
+	const raw = (ctx.callStatus ?? "").toLowerCase();
 	const finalStatus: "completed" | "failed" =
-		ctx.callStatus === "completed" ? "completed" : "failed";
+		raw === "completed" || raw === "answered" || raw === "in-progress"
+			? "completed"
+			: "failed";
 
 	const [item] = await db
 		.select()
