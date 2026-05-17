@@ -1,4 +1,6 @@
 import { Router } from "express";
+import multer from "multer";
+import { guard } from "../../shared/middleware/rbac.middleware";
 import { validate } from "../../shared/middleware/validate.middleware";
 import { created, deleted, ok } from "../../shared/utils/response";
 import { reqUser, routeParam } from "../../shared/utils/route-param";
@@ -23,8 +25,14 @@ import {
 	updateLeadSchema,
 } from "./leads.schema";
 import * as leadsService from "./leads.service";
+import { importLeadsFromCsv } from "./leads-import.service";
 
 const router = Router();
+
+const csvUpload = multer({
+	storage: multer.memoryStorage(),
+	limits: { fileSize: 10 * 1024 * 1024 },
+});
 
 // ─── Stats + Bulk routes ─────────────────────────────────────────────────────
 // MUST be registered BEFORE the nested `/:leadId/*` routers — otherwise
@@ -40,6 +48,28 @@ router.get(
 			reqUser(req),
 		);
 		ok(res, stats);
+	},
+);
+
+router.post(
+	"/import",
+	guard("ADMIN", "MANAGER"),
+	csvUpload.single("file"),
+	async (req, res) => {
+		const file = req.file;
+		if (!file) {
+			res.status(400).json({
+				status: -1,
+				message: "Missing file",
+				data: { code: "VALIDATION_ERROR" },
+			});
+			return;
+		}
+		const result = await importLeadsFromCsv(
+			file.buffer.toString("utf8"),
+			reqUser(req),
+		);
+		ok(res, result, "Import complete");
 	},
 );
 

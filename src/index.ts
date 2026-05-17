@@ -16,7 +16,6 @@ import callBatchesRouter from "./modules/call-batches/call-batches.router";
 import contactsRouter from "./modules/contacts/contacts.router";
 import dealsRouter from "./modules/deals/deals.router";
 import followupsGlobalRouter from "./modules/followups/followups-global.router";
-import importsRouter from "./modules/imports/imports.router";
 import leadsRouter from "./modules/leads/leads.router";
 import pipelinesRouter from "./modules/pipelines/pipelines.router";
 import usersRouter from "./modules/users/users.router";
@@ -77,8 +76,6 @@ app.use("/api/v1/auth", authRouter);
 
 // ─── Protected routes (all require valid JWT) ─────────────────────────────────
 app.use("/api/v1/users", authenticate, usersRouter);
-// Imports router mounted under /leads BEFORE leadsRouter so /leads/import wins.
-app.use("/api/v1/leads", authenticate, importsRouter);
 app.use("/api/v1/leads", authenticate, leadsRouter);
 app.use("/api/v1/contacts", authenticate, contactsRouter);
 app.use("/api/v1/accounts", authenticate, accountsRouter);

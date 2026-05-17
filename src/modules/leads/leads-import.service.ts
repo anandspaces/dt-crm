@@ -2,12 +2,8 @@ import { and, inArray, isNull } from "drizzle-orm";
 import { db } from "../../config/db";
 import { leadActivities, leads } from "../../db/schema";
 import type { JWTPayload } from "../../shared/types/auth";
-import {
-	PRIORITY_VALUES,
-	SOURCE_VALUES,
-	STATUS_VALUES,
-} from "../leads/leads.schema";
-import { splitName } from "../leads/leads.shape";
+import { PRIORITY_VALUES, SOURCE_VALUES, STATUS_VALUES } from "./leads.schema";
+import { splitName } from "./leads.shape";
 
 export interface ImportError {
 	row: number;
