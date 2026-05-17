@@ -1,8 +1,10 @@
 // Load and validate all env vars at startup — crashes immediately if invalid
 
+import { createServer } from "node:http";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
+import { WebSocketServer } from "ws";
 import { verifyDatabaseConnection } from "./config/db";
 import { env } from "./config/env";
 
@@ -19,12 +21,7 @@ import leadsRouter from "./modules/leads/leads.router";
 import pipelinesRouter from "./modules/pipelines/pipelines.router";
 import usersRouter from "./modules/users/users.router";
 import vobizRouter from "./modules/vobiz/vobiz.router";
-import {
-	handleVoiceStreamClose,
-	handleVoiceStreamMessage,
-	handleVoiceStreamOpen,
-	type VoiceStreamData,
-} from "./modules/voice-stream/voice-stream.handler";
+import { attachVoiceStreamHandlers } from "./modules/voice-stream/voice-stream.handler";
 import webhooksRouter from "./modules/webhooks/webhooks.router";
 
 import { errorMiddleware } from "./shared/middleware/error.middleware";
@@ -129,63 +126,6 @@ process.on("uncaughtException", (err) => {
 	process.exit(1);
 });
 
-function startVoiceStreamServer(): void {
-	// Bun's WebSocket server lives on a separate port from Express. Vobiz dials
-	// wss://{host}:{WS_PORT}/voice-stream?... — the URL is built in vobiz.service.
-	// Skipped silently if WS_PORT isn't configured (calling agent disabled).
-	if (!env.WS_PORT) {
-		logger.info("voice-stream disabled (WS_PORT not set)");
-		return;
-	}
-
-	// `Bun` is available globally under the Bun runtime. Guard for tooling that
-	// loads this file under plain Node (e.g. type-checkers).
-	const bun = (globalThis as { Bun?: typeof Bun }).Bun;
-	if (!bun) {
-		logger.warn("Bun runtime not detected — /voice-stream will not start");
-		return;
-	}
-
-	bun.serve<VoiceStreamData, never>({
-		port: env.WS_PORT,
-		fetch(req, server) {
-			const url = new URL(req.url);
-			if (url.pathname !== "/voice-stream") {
-				return new Response("Not found", { status: 404 });
-			}
-			const data: VoiceStreamData = {
-				batchId: url.searchParams.get("batchId") ?? "",
-				itemId: url.searchParams.get("itemId") ?? "",
-				userId: url.searchParams.get("userId") ?? "",
-				callUuid: url.searchParams.get("callUuid") ?? "",
-				streamId: "",
-				transcript: [],
-				liveSession: null,
-				closing: false,
-				artifactDir: "",
-			};
-			if (!data.batchId || !data.itemId) {
-				return new Response("missing batchId/itemId", { status: 400 });
-			}
-			if (server.upgrade(req, { data })) return undefined;
-			return new Response("upgrade failed", { status: 400 });
-		},
-		websocket: {
-			open: (ws) => {
-				void handleVoiceStreamOpen(ws);
-			},
-			message: (ws, message) => {
-				handleVoiceStreamMessage(ws, message);
-			},
-			close: (ws) => {
-				void handleVoiceStreamClose(ws);
-			},
-		},
-	});
-
-	logger.info("voice-stream up", { port: env.WS_PORT });
-}
-
 async function start(): Promise<void> {
 	try {
 		await verifyDatabaseConnection();
@@ -197,14 +137,31 @@ async function start(): Promise<void> {
 		process.exit(1);
 	}
 
-	app.listen(env.PORT, () => {
-		logger.info("server up", {
-			url: `http://localhost:${env.PORT}`,
-			env: env.NODE_ENV,
+	// Wrap Express in a Node http.Server so we can attach a WebSocket upgrade
+	// listener on the SAME port. This matches dextora_crm and lets a single
+	// ngrok tunnel cover both HTTP routes and the wss://.../voice-stream audio
+	// bridge that Vobiz dials.
+	const httpServer = createServer(app);
+	const wss = new WebSocketServer({ noServer: true });
+
+	httpServer.on("upgrade", (request, socket, head) => {
+		const url = new URL(request.url ?? "/", "http://localhost");
+		if (url.pathname !== "/voice-stream") {
+			socket.destroy();
+			return;
+		}
+		wss.handleUpgrade(request, socket, head, (ws) => {
+			attachVoiceStreamHandlers(ws, request);
 		});
 	});
 
-	startVoiceStreamServer();
+	httpServer.listen(env.PORT, () => {
+		logger.info("server up", {
+			url: `http://localhost:${env.PORT}`,
+			env: env.NODE_ENV,
+			voiceStream: "/voice-stream (same port)",
+		});
+	});
 }
 
 if (import.meta.main) {

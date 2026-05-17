@@ -93,13 +93,27 @@ router.post("/recording-complete", async (req, res) => {
 	}
 
 	const body = (req.body as Record<string, unknown>) ?? {};
+	// Vobiz wraps the actual recording payload inside `body.response` as a JSON
+	// string: { batchId, itemId, response: "{\"record_url\":..., \"recording_id\":...}" }
+	// Some accounts send flat payloads instead — handle both.
+	let inner: Record<string, unknown> = body;
+	if (typeof body.response === "string") {
+		try {
+			inner = { ...body, ...(JSON.parse(body.response) as Record<string, unknown>) };
+		} catch {
+			// fall through with the top-level body
+		}
+	}
+
 	res.status(200).send("OK");
 
 	void handleRecordingComplete({
 		batchId,
 		itemId,
-		recordingId: strParam(body.recording_id ?? body.RecordingID),
-		recordUrl: strParam(body.record_url ?? body.RecordUrl ?? body.RecordingUrl),
+		recordingId: strParam(inner.recording_id ?? inner.RecordingID),
+		recordUrl: strParam(
+			inner.record_url ?? inner.RecordUrl ?? inner.RecordingUrl,
+		),
 	}).catch((err) => {
 		logger.error("[vobiz/recording-complete] handler failed", {
 			itemId,

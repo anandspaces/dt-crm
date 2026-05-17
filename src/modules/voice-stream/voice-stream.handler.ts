@@ -1,7 +1,8 @@
 import { appendFile, mkdir } from "node:fs/promises";
+import type { IncomingMessage } from "node:http";
 import path from "node:path";
-import type { ServerWebSocket } from "bun";
 import { eq } from "drizzle-orm";
+import type { WebSocket } from "ws";
 import { db } from "../../config/db";
 import { env } from "../../config/env";
 import {
@@ -116,18 +117,70 @@ async function persistTranscript(
 	}
 }
 
-export async function handleVoiceStreamOpen(
-	ws: ServerWebSocket<VoiceStreamData>,
+/** Per-connection state, keyed by the underlying WebSocket. */
+const sessions = new Map<WebSocket, VoiceStreamData>();
+
+export function parseVoiceStreamRequest(
+	request: IncomingMessage,
+): VoiceStreamData | null {
+	const url = new URL(request.url ?? "/", "http://localhost");
+	const data: VoiceStreamData = {
+		batchId: url.searchParams.get("batchId") ?? "",
+		itemId: url.searchParams.get("itemId") ?? "",
+		userId: url.searchParams.get("userId") ?? "",
+		callUuid: url.searchParams.get("callUuid") ?? "",
+		streamId: "",
+		transcript: [],
+		liveSession: null,
+		closing: false,
+		artifactDir: "",
+	};
+	if (!data.batchId || !data.itemId) return null;
+	return data;
+}
+
+export function attachVoiceStreamHandlers(
+	ws: WebSocket,
+	request: IncomingMessage,
+): void {
+	const data = parseVoiceStreamRequest(request);
+	if (!data) {
+		ws.close(1008, "missing batchId/itemId");
+		return;
+	}
+	sessions.set(ws, data);
+
+	void openSession(ws, data);
+
+	ws.on("message", (raw: Buffer | ArrayBuffer | Buffer[]) => {
+		handleMessage(ws, data, raw);
+	});
+
+	ws.on("close", () => {
+		void closeSession(ws, data);
+	});
+
+	ws.on("error", (err: Error) => {
+		logger.error("[voice-stream] ws error", {
+			itemId: data.itemId,
+			error: err.message,
+		});
+	});
+}
+
+async function openSession(
+	ws: WebSocket,
+	data: VoiceStreamData,
 ): Promise<void> {
-	const { batchId, itemId } = ws.data;
+	const { batchId, itemId } = data;
 	logger.info("[voice-stream] open", { batchId, itemId });
 
-	// Ensure the artifact dir exists up front; persist it on the queue item so
-	// recovery/analysis can find it later. Mirrors dextora_crm's ensureArtifactDir.
+	// Ensure the artifact dir exists; persist it on the queue item so recovery /
+	// analysis can find it later (mirrors dextora_crm's ensureArtifactDir).
 	const dir = artifactDirFor(batchId, itemId);
 	try {
 		await mkdir(dir, { recursive: true });
-		ws.data.artifactDir = dir;
+		data.artifactDir = dir;
 		await db
 			.update(callQueueItems)
 			.set({ artifactDir: dir, updatedAt: new Date() })
@@ -150,14 +203,14 @@ export async function handleVoiceStreamOpen(
 			agentConfig.systemInstruction +
 			(ragContext ? `\n\n### CONTEXT:\n${ragContext}` : "");
 
-		// Throttle DB writes — flush transcript every ~1.5s rather than on every token.
+		// Throttle DB writes — flush transcript every ~1.5s rather than per token.
 		let lastFlush = 0;
 		const FLUSH_INTERVAL_MS = 1500;
 		const maybeFlush = () => {
 			const now = Date.now();
 			if (now - lastFlush < FLUSH_INTERVAL_MS) return;
 			lastFlush = now;
-			void persistTranscript(itemId, [...ws.data.transcript]).catch((err) => {
+			void persistTranscript(itemId, [...data.transcript]).catch((err) => {
 				logger.warn("[voice-stream] transcript flush failed", {
 					itemId,
 					error: err instanceof Error ? err.message : String(err),
@@ -170,19 +223,18 @@ export async function handleVoiceStreamOpen(
 			agentConfig.voice,
 			{
 				onTranscript: (role: TranscriptRole, text: string) => {
-					ws.data.transcript.push({
+					data.transcript.push({
 						role,
 						text,
 						timestamp: new Date().toISOString(),
 					});
-					// Real-time append to transcript.txt (best-effort).
-					if (ws.data.artifactDir) {
-						void appendTranscriptLine(ws.data.artifactDir, role, text);
+					if (data.artifactDir) {
+						void appendTranscriptLine(data.artifactDir, role, text);
 					}
 					maybeFlush();
 				},
 				onAudioChunk: (mulaw: Buffer) => {
-					if (ws.data.closing) return;
+					if (data.closing || ws.readyState !== 1) return;
 					ws.send(
 						JSON.stringify({
 							event: "playAudio",
@@ -195,9 +247,9 @@ export async function handleVoiceStreamOpen(
 					);
 				},
 				onInterrupted: () => {
-					if (ws.data.closing) return;
+					if (data.closing || ws.readyState !== 1) return;
 					ws.send(
-						JSON.stringify({ event: "clearAudio", streamId: ws.data.streamId }),
+						JSON.stringify({ event: "clearAudio", streamId: data.streamId }),
 					);
 				},
 				onError: (err) => {
@@ -209,7 +261,7 @@ export async function handleVoiceStreamOpen(
 			},
 		);
 
-		ws.data.liveSession = session;
+		data.liveSession = session;
 	} catch (err) {
 		logger.error("[voice-stream] failed to open gemini session", {
 			itemId,
@@ -219,13 +271,19 @@ export async function handleVoiceStreamOpen(
 	}
 }
 
-export function handleVoiceStreamMessage(
-	ws: ServerWebSocket<VoiceStreamData>,
-	raw: string | Buffer,
+function handleMessage(
+	ws: WebSocket,
+	data: VoiceStreamData,
+	raw: Buffer | ArrayBuffer | Buffer[],
 ): void {
 	let msg: Record<string, unknown>;
 	try {
-		msg = JSON.parse(typeof raw === "string" ? raw : raw.toString("utf8"));
+		const text = Array.isArray(raw)
+			? Buffer.concat(raw).toString("utf8")
+			: raw instanceof ArrayBuffer
+				? Buffer.from(raw).toString("utf8")
+				: raw.toString("utf8");
+		msg = JSON.parse(text);
 	} catch {
 		return;
 	}
@@ -234,20 +292,20 @@ export function handleVoiceStreamMessage(
 
 	if (event === "start") {
 		const start = msg.start as Record<string, unknown> | undefined;
-		ws.data.streamId =
+		data.streamId =
 			(typeof msg.streamId === "string" && msg.streamId) ||
 			(typeof start?.streamSid === "string" && start.streamSid) ||
 			"";
 		return;
 	}
 
-	if (event === "media" && ws.data.liveSession) {
+	if (event === "media" && data.liveSession) {
 		const media = msg.media as Record<string, unknown> | undefined;
 		const payload = typeof media?.payload === "string" ? media.payload : "";
 		if (payload.length === 0) return;
 		try {
 			const mulaw = Buffer.from(payload, "base64");
-			ws.data.liveSession.sendAudio(mulaw);
+			data.liveSession.sendAudio(mulaw);
 		} catch (err) {
 			logger.warn("[voice-stream] failed to forward media", {
 				error: err instanceof Error ? err.message : String(err),
@@ -257,39 +315,56 @@ export function handleVoiceStreamMessage(
 	}
 
 	if (event === "stop") {
-		void closeSession(ws);
+		void closeSession(ws, data);
 	}
 }
 
-export async function handleVoiceStreamClose(
-	ws: ServerWebSocket<VoiceStreamData>,
-): Promise<void> {
-	await closeSession(ws);
-}
-
 async function closeSession(
-	ws: ServerWebSocket<VoiceStreamData>,
+	ws: WebSocket,
+	data: VoiceStreamData,
 ): Promise<void> {
-	if (ws.data.closing) return;
-	ws.data.closing = true;
+	if (data.closing) return;
+	data.closing = true;
+	sessions.delete(ws);
 
-	if (ws.data.transcript.length > 0) {
+	if (data.transcript.length > 0) {
 		try {
-			await persistTranscript(ws.data.itemId, ws.data.transcript);
+			await persistTranscript(data.itemId, data.transcript);
 		} catch (err) {
 			logger.warn("[voice-stream] final transcript flush failed", {
-				itemId: ws.data.itemId,
+				itemId: data.itemId,
 				error: err instanceof Error ? err.message : String(err),
 			});
 		}
 	}
 
-	if (ws.data.liveSession) {
+	if (data.liveSession) {
 		try {
-			await ws.data.liveSession.close();
+			await data.liveSession.close();
 		} catch {
 			// already logged inside gemini-live
 		}
-		ws.data.liveSession = null;
+		data.liveSession = null;
 	}
+}
+
+// ─── Test exports (preserve previous shape for unit tests) ──────────────────
+// These are kept so tests/unit/voice-stream-msg.test.ts continues to work
+// without needing a real ws instance. The handler accepts any object with
+// `data: VoiceStreamData`, `send()` and `close()`.
+
+export interface VoiceStreamWsLike {
+	data: VoiceStreamData;
+	readyState?: number;
+	send: (raw: string) => void;
+	close: (code?: number, reason?: string) => void;
+}
+
+export function handleVoiceStreamMessage(
+	ws: VoiceStreamWsLike,
+	raw: string | Buffer,
+): void {
+	const buf =
+		typeof raw === "string" ? Buffer.from(raw, "utf8") : (raw as Buffer);
+	handleMessage(ws as unknown as WebSocket, ws.data, buf);
 }

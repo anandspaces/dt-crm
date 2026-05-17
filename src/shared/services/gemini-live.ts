@@ -126,16 +126,27 @@ export async function createGeminiLiveSession(
 			systemInstruction,
 		},
 		callbacks: {
-			onopen: () => logger.info("[gemini-live] session open"),
+			onopen: () =>
+				logger.info("[gemini-live] session open", {
+					model: env.GEMINI_LIVE_MODEL,
+					voice: voiceName,
+				}),
 			onmessage: handleMessage,
 			onerror: (e: unknown) => {
 				logger.error("[gemini-live] error", {
-					error: e instanceof Error ? e.message : String(e),
+					error: e instanceof Error ? e.message : JSON.stringify(e),
 				});
 				callbacks.onError?.(e);
 			},
-			onclose: () => {
-				logger.info("[gemini-live] session closed");
+			onclose: (e: unknown) => {
+				// Capture close code/reason — when Gemini rejects a model name or
+				// auth fails, it closes without firing onerror and we'd otherwise
+				// lose the diagnostic. The shape varies by SDK version, so JSON-
+				// stringify defensively.
+				logger.warn("[gemini-live] session closed", {
+					detail:
+						e instanceof Error ? e.message : JSON.stringify(e, null, 0),
+				});
 				callbacks.onClose?.();
 			},
 		},

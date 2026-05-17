@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { eq } from "drizzle-orm";
 import { db } from "../../config/db";
@@ -58,14 +58,14 @@ export async function handleVobizAnswer(ctx: AnswerContext): Promise<string> {
 		.set({ outcome: "connected", vobizCallUuid: ctx.callUuid })
 		.where(eq(leadCalls.queueItemId, ctx.itemId));
 
+	// HTTP and WebSocket share the same port (see src/index.ts httpServer +
+	// WebSocketServer.handleUpgrade). One ngrok tunnel covers both.
 	const base = (env.PUBLIC_BASE_URL ?? "").replace(/\/+$/, "");
 	const wsBase = base.replace(
 		/^https?:/,
 		base.startsWith("https") ? "wss:" : "ws:",
 	);
-	const wsPort = env.WS_PORT ? `:${env.WS_PORT}` : "";
-	const wsHost = wsBase.replace(/^(wss?:\/\/[^/]+)\/?.*$/, "$1");
-	const wsUrl = `${wsHost}${wsPort}/voice-stream?batchId=${ctx.batchId}&itemId=${ctx.itemId}&userId=${ctx.userId}&callUuid=${ctx.callUuid}`;
+	const wsUrl = `${wsBase}/voice-stream?batchId=${ctx.batchId}&itemId=${ctx.itemId}&userId=${ctx.userId}&callUuid=${ctx.callUuid}`;
 	const statusUrl = `${base}/api/v1/vobiz/stream-status?itemId=${ctx.itemId}`;
 
 	// Fire-and-forget recording start. Failure is logged but doesn't break the call.
@@ -215,7 +215,7 @@ export async function handleRecordingComplete(
 		const res = await fetch(ctx.recordUrl);
 		if (res.ok) {
 			const ab = await res.arrayBuffer();
-			await Bun.write(target, ab);
+			await writeFile(target, Buffer.from(ab));
 			localUrl = `/recordings/${ctx.batchId}/${ctx.itemId}/${fileName}`;
 		} else {
 			logger.warn("[vobiz] recording fetch failed", {
