@@ -1,5 +1,3 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { eq } from "drizzle-orm";
 import { db } from "../../config/db";
 import { env } from "../../config/env";
@@ -7,6 +5,7 @@ import { callQueueItems, leadCalls, leads } from "../../db/schema";
 import { analyzeCallTranscript } from "../../shared/services/gemini-text";
 import { startVobizRecording } from "../../shared/services/vobiz.client";
 import { logger } from "../../shared/utils/logger";
+import { saveCallRecording } from "../../shared/utils/storage";
 import {
 	refreshBatchCounts,
 	startNextQueuedCall,
@@ -207,16 +206,16 @@ export async function handleRecordingComplete(
 
 	let localUrl: string | undefined;
 	try {
-		const targetDir = path.join(env.ARTIFACTS_DIR, ctx.batchId, ctx.itemId);
-		await mkdir(targetDir, { recursive: true });
-		const fileName = `recording.${env.VOBIZ_RECORDING_FORMAT}`;
-		const target = path.join(targetDir, fileName);
-
 		const res = await fetch(ctx.recordUrl);
 		if (res.ok) {
 			const ab = await res.arrayBuffer();
-			await writeFile(target, Buffer.from(ab));
-			localUrl = `/recordings/${ctx.batchId}/${ctx.itemId}/${fileName}`;
+			const stored = await saveCallRecording(
+				ctx.batchId,
+				ctx.itemId,
+				env.VOBIZ_RECORDING_FORMAT,
+				Buffer.from(ab),
+			);
+			localUrl = stored.url;
 		} else {
 			logger.warn("[vobiz] recording fetch failed", {
 				status: res.status,

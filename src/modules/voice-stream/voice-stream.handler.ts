@@ -1,6 +1,4 @@
-import { appendFile, mkdir } from "node:fs/promises";
 import type { IncomingMessage } from "node:http";
-import path from "node:path";
 import { eq } from "drizzle-orm";
 import type { WebSocket } from "ws";
 import { db } from "../../config/db";
@@ -19,6 +17,10 @@ import {
 } from "../../shared/services/gemini-live";
 import { retrieveKnowledge } from "../../shared/services/rag";
 import { logger } from "../../shared/utils/logger";
+import {
+	appendCallTranscript,
+	ensureCallArtifactDir,
+} from "../../shared/utils/storage";
 
 export interface VoiceStreamData {
 	batchId: string;
@@ -29,24 +31,23 @@ export interface VoiceStreamData {
 	transcript: TranscriptEntry[];
 	liveSession: GeminiLiveSession | null;
 	closing: boolean;
-	/** Local FS dir for transcript.txt + analysis.json artifacts. */
-	artifactDir: string;
+	/** Storage key for this call's artifact folder (e.g. `calls/<batchId>/<itemId>`).
+	 *  Empty string until the WS session opens. */
+	artifactKey: string;
 }
 
-function artifactDirFor(batchId: string, itemId: string): string {
-	return path.join(env.ARTIFACTS_DIR, batchId, itemId);
-}
-
-/** Append one transcript line to transcript.txt for offline debugging /
- * post-hoc analysis (mirrors dextora_crm's appendTranscriptArtifact). */
 async function appendTranscriptLine(
-	artifactDir: string,
+	batchId: string,
+	itemId: string,
 	role: TranscriptRole,
 	text: string,
 ): Promise<void> {
 	try {
-		const line = `[${new Date().toISOString()}] ${role}: ${text}\n`;
-		await appendFile(path.join(artifactDir, "transcript.txt"), line, "utf8");
+		await appendCallTranscript(
+			batchId,
+			itemId,
+			`[${new Date().toISOString()}] ${role}: ${text}`,
+		);
 	} catch (err) {
 		logger.warn("[voice-stream] failed to append transcript line", {
 			error: err instanceof Error ? err.message : String(err),
@@ -133,7 +134,7 @@ export function parseVoiceStreamRequest(
 		transcript: [],
 		liveSession: null,
 		closing: false,
-		artifactDir: "",
+		artifactKey: "",
 	};
 	if (!data.batchId || !data.itemId) return null;
 	return data;
@@ -175,15 +176,14 @@ async function openSession(
 	const { batchId, itemId } = data;
 	logger.info("[voice-stream] open", { batchId, itemId });
 
-	// Ensure the artifact dir exists; persist it on the queue item so recovery /
-	// analysis can find it later (mirrors dextora_crm's ensureArtifactDir).
-	const dir = artifactDirFor(batchId, itemId);
+	// Ensure the artifact dir exists; persist the storage key on the queue item
+	// so recovery / analysis can find the folder later (host- and backend-agnostic).
 	try {
-		await mkdir(dir, { recursive: true });
-		data.artifactDir = dir;
+		const key = await ensureCallArtifactDir(batchId, itemId);
+		data.artifactKey = key;
 		await db
 			.update(callQueueItems)
-			.set({ artifactDir: dir, updatedAt: new Date() })
+			.set({ artifactKey: key, updatedAt: new Date() })
 			.where(eq(callQueueItems.id, itemId));
 	} catch (err) {
 		logger.warn("[voice-stream] failed to ensure artifact dir", {
@@ -228,8 +228,8 @@ async function openSession(
 						text,
 						timestamp: new Date().toISOString(),
 					});
-					if (data.artifactDir) {
-						void appendTranscriptLine(data.artifactDir, role, text);
+					if (data.artifactKey) {
+						void appendTranscriptLine(batchId, itemId, role, text);
 					}
 					maybeFlush();
 				},

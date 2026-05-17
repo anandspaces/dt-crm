@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
-import { handleVoiceStreamMessage } from "../../src/modules/voice-stream/voice-stream.handler";
 import type { VoiceStreamData } from "../../src/modules/voice-stream/voice-stream.handler";
+import { handleVoiceStreamMessage } from "../../src/modules/voice-stream/voice-stream.handler";
 
 interface FakeWS {
 	data: VoiceStreamData;
@@ -22,7 +22,7 @@ function freshWs(): FakeWS {
 			// liveSession stub — supports .sendAudio and .close
 			liveSession: { sendAudio, close: closeFn },
 			closing: false,
-			artifactDir: "",
+			artifactKey: "",
 		},
 		send: mock(() => {}),
 		close: mock(() => {}),

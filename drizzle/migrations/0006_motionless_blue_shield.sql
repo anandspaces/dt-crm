@@ -43,7 +43,7 @@ CREATE TABLE "call_queue_items" (
 	"call_document_id" uuid,
 	"recording_id" varchar(255),
 	"recording_url" varchar(1024),
-	"artifact_dir" text,
+	"artifact_key" text,
 	"error" text,
 	"duration_seconds" integer,
 	"sentiment_label" varchar(50),

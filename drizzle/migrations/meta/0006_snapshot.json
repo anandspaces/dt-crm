@@ -1158,8 +1158,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "artifact_dir": {
-          "name": "artifact_dir",
+        "artifact_key": {
+          "name": "artifact_key",
           "type": "text",
           "primaryKey": false,
           "notNull": false

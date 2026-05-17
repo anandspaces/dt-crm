@@ -39,8 +39,6 @@ const envSchema = z.object({
 	/** Separate port for the Bun WebSocket server that handles /voice-stream.
 	 * Express keeps PORT for HTTP; Bun.serve() takes this port for WS upgrades. */
 	WS_PORT: z.coerce.number().int().positive().optional(),
-	/** Where MP3 recordings and per-call artifacts are stored locally. */
-	ARTIFACTS_DIR: z.string().default("./call-artifacts"),
 
 	GEMINI_API_KEY: z.string().optional(),
 	GEMINI_MODEL: z.string().default("gemini-2.5-flash"),

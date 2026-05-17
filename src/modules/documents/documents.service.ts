@@ -5,9 +5,9 @@ import { leadActivities, leadDocuments, users } from "../../db/schema";
 import type { JWTPayload } from "../../shared/types/auth";
 import { ForbiddenError, NotFoundError } from "../../shared/utils/errors";
 import {
-	deleteLeadDocument,
+	deleteByKey,
 	saveLeadDocument,
-	urlToRelativePath,
+	urlToKey,
 } from "../../shared/utils/storage";
 import { assertLeadAccess } from "../leads/leads.service";
 
@@ -151,6 +151,6 @@ export async function deleteDocument(
 
 	await db.delete(leadDocuments).where(eq(leadDocuments.id, doc.id));
 
-	const relPath = urlToRelativePath(doc.url);
-	if (relPath) deleteLeadDocument(relPath);
+	const key = urlToKey(doc.url);
+	if (key) deleteByKey(key);
 }

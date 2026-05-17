@@ -88,15 +88,13 @@ app.use("/api/v1/followups", authenticate, followupsGlobalRouter);
 app.use("/api/v1/ai-agents", authenticate, aiAgentsRouter);
 app.use("/api/v1/call-batches", authenticate, callBatchesRouter);
 
-// ─── Static uploads (lead documents) ──────────────────────────────────────────
-// Mirrors the URLs returned by the documents storage helper.
+// ─── Static uploads ──────────────────────────────────────────────────────────
+// Single root for every file this backend persists:
+//   uploads/leads/<leadId>/<file>            — lead documents
+//   uploads/calls/<batchId>/<itemId>/...     — recording.mp3, transcript.txt, …
+// URL prefix matches the on-disk layout, so storage keys map 1:1 to URLs and
+// to GCS object keys when we cut over.
 app.use("/uploads", express.static(UPLOADS_DIR));
-
-// ─── Static recordings (call audio + transcript artifacts) ───────────────────
-// vobiz.service writes downloaded MP3s to ARTIFACTS_DIR and exposes them as
-// `/recordings/{batchId}/{itemId}/recording.mp3` on call_queue_items.recordingUrl
-// and lead_calls.recordingUrl. Without this mount the URLs would 404.
-app.use("/recordings", express.static(env.ARTIFACTS_DIR));
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => {

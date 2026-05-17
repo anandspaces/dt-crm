@@ -50,7 +50,10 @@ export const callQueueItems = pgTable(
 		callDocumentId: uuid("call_document_id"),
 		recordingId: varchar("recording_id", { length: 255 }),
 		recordingUrl: varchar("recording_url", { length: 1024 }),
-		artifactDir: text("artifact_dir"),
+		/** Storage key for the per-call artifact folder, e.g.
+		 *  `calls/<batchId>/<itemId>`. Resolved via shared/utils/storage so the
+		 *  same key works locally and against the future GCS bucket. */
+		artifactKey: text("artifact_key"),
 		error: text("error"),
 		durationSeconds: integer("duration_seconds"),
 		sentimentLabel: varchar("sentiment_label", { length: 50 }),
